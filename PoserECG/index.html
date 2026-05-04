@@ -1,0 +1,1869 @@
+<!doctype html>
+<html>
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>POSER: ECG-12 RC</title>
+  <style>
+		body {
+			position: relative;
+			background: #000;
+			font-family: 'Courier New', monospace;
+			transform-origin: center center;
+			width: 100%;
+			min-height: 100vh;
+			margin: 0 auto;
+			overflow-x: hidden;
+			padding: 8px 0;
+			max-width: 480px;
+		}
+
+		.ecg-container {
+			height: auto;
+			overflow-y: auto;
+			max-height: 60vh;
+			padding-bottom: 10px;
+			width: 95%;
+			margin: 0 auto;
+		}
+
+		.lead-box {
+			border: 2px solid #00dd00;
+			
+			margin-bottom: 8px;
+			position: relative;
+			min-height: 35px;
+			background: #030;
+		}
+
+		.lead-name {
+			position: absolute;
+			top: -2px;
+			left: -2px;
+			background: #000;
+			border-right: 2px solid #00dd00;
+			border-bottom: 2px solid #00dd00;
+			padding: 0 8px;
+			color: #00cc66;
+			font-weight: bold;
+			font-size: 14px;
+		}
+
+		.ecg-canvas {
+			width: 100%;
+			height: 36px;
+			background: #030;
+			display: block;
+			margin-top: 15.7px;
+			position: relative;
+			filter: blur(0.3px);
+			
+		}
+
+		.lead-vertical-line {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 2px;
+			height: 100%;
+			background: #fff;
+			z-index: 10;
+			pointer-events: none;
+		}
+
+		.button-row {
+			display: flex;
+			justify-content: center;
+			gap: 8px;
+			margin-top: 10px;
+			flex-wrap: wrap;
+			width: 95%;
+			margin-left: auto;
+			margin-right: auto;
+		}
+
+		.diagnosis-btn {
+			background: #000;
+			color: #00cc66;
+			border: 2px solid #00ff00;
+			border-radius: 8px;
+			padding: 6px 12px;
+			font-size: 14px;
+			cursor: pointer;
+		}
+
+		.diagnosis-btn.active {
+			background: #00cc66;
+			color: #000;
+		}
+
+		.diagnosis-btn:hover {
+			background: #00cc66;
+			color: #000;
+		}
+
+		.result-box {
+			width: 90%;
+			min-height: 50px;
+			margin: 10px auto 0;
+			border: 2px solid #00ff00;
+			border-radius: 8px;
+			background: #000;
+			padding: 10px;
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.audio-toggle {
+			position: relative;
+			height: 40px;
+			background: #0f0;
+			color: #000;
+			border: 2px solid #00ff00;
+			border-radius: 5px;
+			top: 7px;
+			font-size: 14px;
+			z-index: 1000;
+		}
+	.sub-btn {
+		background: #001100;
+		color: #00ff00;
+		border: 2px solid #00ff00;
+		border-radius: 8px;
+		padding: 5px 10px;
+		font-size: 12px;
+		cursor: pointer;
+		width: 90px;
+		text-align: center;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+		.sub-btn:hover, .sub-btn.active {
+			background: #00cc66;
+			color: #000;
+		}
+
+		.control-panel {
+			width: 90%;
+			margin: 10px auto;
+			border: 3px solid #00ff00;
+			border-radius: 8px;
+			background: #55aa55;
+			padding: 10px;
+			color: #00ff00;
+			font-weight: 900;
+		}
+
+		.control-row {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 10px;
+			margin: 5px 0;
+		}
+
+		.control-row input[type="range"] {
+			width: 200px;
+		}
+
+		.hr-display {
+			font-weight: bold;
+			min-width: 60px;
+			text-align: center;
+		}
+
+		.log-page {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: #000;
+			z-index: 1001;
+			display: none;
+			flex-direction: column;
+			align-items: flex-start;
+			padding: 20px;
+		}
+
+		.log-title {
+			color: #ffffff;
+			font-size: 32px;
+			font-weight: bold;
+			margin-bottom: 40px;
+			text-align: left;
+			width: 100%;
+		}
+
+		.log-btn {
+			position: relative;
+			height: 40px;
+			background: #0f0;
+			color: #000;
+			border: 2px solid #00ff00;
+			border-radius: 5px;
+			top: 7px;
+			font-size: 14px;
+			z-index: 1000;
+		}
+		
+
+		.log-btn:hover {
+			background: #00cc66;
+			color: #000;
+		}
+
+		.log-page .diagnosis-btn {
+			color: #ffffff;
+			margin: 0 auto;
+			align-self: center;
+		}
+
+		.log-page .diagnosis-btn:hover {
+			background: #00cc66;
+			color: #000;
+		}
+		
+		.otherbtn {
+			position: relative;
+			width: 95%;
+			height: 52px;
+			background: #55aa55;
+			border: 3px solid #00ff00;
+			border-radius: 5px;
+			margin: 0 auto;
+			display: flex;
+			justify-content: center;
+			flex-wrap: wrap;
+			gap: 8px;
+			top
+		}
+		
+		.main-title {
+			position: relative;
+			color: #00ff00;
+			font-size: 30px;
+			font-weight: 900;
+			text-align: center;
+			top: -20px;
+		}
+		
+		.sub-title {
+			position: relative;
+			color: #00ff00;
+			font-size: 20px;
+			font-weight: 900;
+			text-align: center;
+			top: -40px;
+		}
+		
+		#hrSlider {
+			width: 200px;
+			accent-color: #00ee00;
+		}
+		
+		.suutitle {
+			position: relative;
+			color: #00ff00;
+			font-size: 16px;
+			font-weight: 900;
+			text-align: center;
+			top: -40px;
+			margin: 10px;
+		}
+
+.setm {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: #000;
+	z-index: 1001;
+	display: none;
+	flex-direction: column;
+	/* 下面这三行是关键：只水平居中，不垂直居中 */
+	align-items: center;
+	justify-content: flex-start;
+	padding-top: 10px; /* 控制文字离顶部的距离 */
+	gap: 10px;
+	flex-direction: column;
+}
+.setxt {position: absolute; color: #0f0; font-size: 30px; left: 10px;}
+				
+	.leadtype {
+		width: 80px;
+		height: 50px;
+		background: #050;
+		border: 2px solid #0f0;
+		border-radius: 5px;
+	}
+	</style>
+ </head>
+ <body>
+  <h2 class="main-title">ECG simulation 12</h2>
+  <h2 class="sub-title">poser-V2.0.0 RC</h2>
+  <h2 class="suutitle">Dawn(Poser) Development:<br/>ECG-12 lead Simulator
+  <div class="otherbtn">
+   <button class="log-btn" onclick="openLogPage()">i.日志</button>
+   <button id="audioBtn" class="audio-toggle" onclick="toggleAudio()">音效: 关</button>
+   <button id="SettingBtn" class="audio-toggle" onclick="openset()">设置⚙️</button>
+   <!--<button class="log-btn"></button>-->
+	   
+  </div>
+<div class="setm" id="setm">
+<h1 style="position: relative; color: #0f0; font-size: 30px;">显示导联</h1>
+<!--<h1 class="setxt">?</h1>-->
+<button class="leadtype" id="leadt1"></button>
+</div>
+  <div class="log-page" id="logPage">
+   <div class="log-title" style="font-size:12px;">
+	ECG-12更新日志
+	<br>
+	0.0.1:
+	<br>
+	0.0.2:完善了室,房性波形
+	<br>
+	0.0.3:完善了更多波形
+	<br>
+	0.0.4:增加了下壁梗死
+	<br>
+	0.0.5:增加了前壁梗死与日志功能
+	<br>
+	0.0.5.1:开学了很生气
+	<br>
+	0.0.6:新增了预激AB
+	<br>
+	0.0.7:新增了高低血钾症
+	<br>
+	0.7.1:修改版本号规则，为子版本预留空间
+	<br>
+	0.8.0:新增了高低血钙症
+	<br>
+	0.9.0:新增了高低血镁症
+	<br>
+	1.0.0:预备正式版
+	<br>
+	1.1.0:新增了三个尖端扭转vt，电轴翻转速度不同
+	<br>
+	1.1.1:这一段暂时不动版本号
+	<br>
+	1.2.0:初代介入治疗功能
+	<br>
+	1.3.0:增加了心电音效，修复了已知问题
+	<br>
+	2.0.0:对模拟器进行全面大改,优化界面
+	<br>
+	--------------------------------------------
+	<br>
+	作: Poser_破晓 WYL.龙尊 思路: H128
+	<br>
+	程序: Poser_破晓 WYL.龙尊
+	<br>
+	设计: Poser_破晓
+	<br>
+	其他思路提供(dy):送
+   </div>
+   <button class="diagnosis-btn" onclick="closeLogPage()">返回</button>
+  </div>
+  <div class="control-panel">
+   <div class="control-row">
+	<span></span> <input class="inputhrof" type="range" id="hrSlider" min="0" max="300" value="75"> <span class="hr-display" id="hrDisplay">75</span> <span>BPM</span>
+   </div>
+  </div>
+  <div class="ecg-container" id="ecgContainer">
+   <div class="lead-box" id="lead1">
+	<span class="lead-name">I</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead2">
+	<span class="lead-name">II</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead3">
+	<span class="lead-name">III</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead4">
+	<span class="lead-name">aVR</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead5">
+	<span class="lead-name">aVL</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead6">
+	<span class="lead-name">aVF</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead67">
+	<span class="lead-name">V1</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead8">
+	<span class="lead-name">V2</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead9">
+	<span class="lead-name">V3</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead10">
+	<span class="lead-name">V4</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead11">
+	<span class="lead-name">V5</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+   <div class="lead-box" id="lead12">
+	<span class="lead-name">V6</span>
+	<div class="lead-vertical-line"></div>
+	<canvas class="ecg-canvas"></canvas>
+   </div>
+  </div>
+  <div class="button-row">
+   <button class="diagnosis-btn" onclick="showVentricular()">室性</button>
+   <button class="diagnosis-btn" onclick="showAtrial()">房性</button>
+   <button class="diagnosis-btn" onclick="showJunctional()">交界</button>
+   <button class="diagnosis-btn" onclick="showOther()">其他</button>
+   <button class="diagnosis-btn" onclick="showInterventional()">介入</button>
+  </div>
+  <div class="result-box" id="resultBox"></div>
+  <script>
+		const lead1 = document.getElementById('lead1');
+		const lead2 = document.getElementById('lead2');
+		const lead3 = document.getElementById('lead3');
+		const lead4 = document.getElementById('lead4');
+		const lead5 = document.getElementById('lead5');
+		const lead6 = document.getElementById('lead6');
+		const lead7 = document.getElementById('lead7');
+		const lead8 = document.getElementById('lead8');
+		const lead9 = document.getElementById('lead9');
+		const lead10 = document.getElementById('lead10');
+		const lead11 = document.getElementById('lead11');
+		const lead12 = document.getElementById('lead12');
+		let currentHR = 75;
+		let globalTime = 0;
+		let lastFrameTime = 0;
+
+		let linePosition = 0;
+		const LINE_SPEED = 1.25;
+
+		let canvasWidth = 0;
+		let allVerticalLines = null;
+		let currentWaveFunc = null;
+
+		let audioCtx = null;
+		let isAudioEnabled = false;
+		let lastValue = 0;
+		let peakThreshold = 8;
+
+		function getECGNoise(t) {
+			const baseDrift = Math.sin(t * 0.00004) * 0.35;
+			return (Math.sin(t * 0.75) + Math.random() - 0.5) * 0.63 + baseDrift;
+		}
+
+		function toggleAudio() {
+			if (!audioCtx) {
+				audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			}
+			isAudioEnabled = !isAudioEnabled;
+			document.getElementById('audioBtn').textContent = isAudioEnabled ? "音效: 开" : "音效: 关";
+			if (audioCtx.state === 'suspended') audioCtx.resume();
+		}
+		
+		function openset() {
+			document.getElementById('setm').style.display = "flex";
+		}
+		
+		function noall() {
+			lead1.style.display = 'none';
+			lead2.style.display = 'none';
+			lead3.style.display = 'none';
+			lead4.style.display = 'none';
+			lead5.style.display = 'none';
+			lead6.style.display = 'none';
+			lead7.style.display = 'none';
+			lead8.style.display = 'none';
+			lead9.style.display = 'none';
+			lead10.style.display = 'none';
+			lead11.style.display = 'none';
+			lead12.style.display = 'none';
+		}
+
+		function playBeep() {
+			if (!isAudioEnabled || !audioCtx) return;
+			const osc = audioCtx.createOscillator();
+			const gain = audioCtx.createGain();
+			osc.type = 'sine';
+			osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+			gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+			gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+			osc.connect(gain);
+			gain.connect(audioCtx.destination);
+			osc.start();
+			osc.stop(audioCtx.currentTime + 0.1);
+		}
+
+		document.getElementById('hrSlider').addEventListener('input', function(e) {
+			currentHR = parseInt(e.target.value);
+			document.getElementById('hrDisplay').textContent = currentHR;
+		});
+
+		function smoothStep(x, x0, x1, y0, y1) {
+			if (x <= x0) return y0;
+			if (x >= x1) return y1;
+			const t = (x - x0) / (x1 - x0);
+			return y0 + t * t * (3 - 2 * t) * (y1 - y0);
+		}
+
+		function gaussian(x, center, width, amplitude) {
+			return amplitude * Math.exp(-Math.pow(x - center, 2) / (2 * Math.pow(width, 2)));
+		}
+
+		const leadAmps = {
+			0: {P: 2, Q: -2, R: 12, S: -3, T: 4},
+			1: {P: 2.5, Q: -2, R: 15, S: -2, T: 5},
+			2: {P: 2, Q: -3, R: 10, S: -4, T: 3},
+			3: {P: -1.5, Q: -1, R: -8, S: -8, T: -3},
+			4: {P: 1.5, Q: -2, R: 8, S: -3, T: 3},
+			5: {P: 2.5, Q: -2, R: 14, S: -2, T: 5},
+			6: {P: 1, Q: 0, R: 3, S: -12, T: 2},
+			7: {P: 1.5, Q: 0, R: 8, S: -15, T: 4},
+			8: {P: 2, Q: -1, R: 15, S: -10, T: 5},
+			9: {P: 2.5, Q: -1, R: 20, S: -5, T: 6},
+			10: {P: 2.5, Q: -2, R: 22, S: -3, T: 6},
+			11: {P: 2, Q: -2, R: 18, S: -2, T: 5}
+		};
+
+		function normalSinus(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			if (t >= 360 && t <= 560) {
+				y += gaussian(t, 460, 60, amp.T);
+			}
+
+			return y;
+		}
+
+		function atrialFibrillation(t, leadIndex) {
+			const avgVentricularRate = Math.min(currentHR, 100);
+			const avgPeriod = 60000 / avgVentricularRate;
+			const amp = leadAmps[leadIndex];
+
+			let y = (Math.sin(t * 0.08) + Math.sin(t * 0.12)) * 1.5;
+			y += (Math.random() - 0.5) * 2;
+
+			const irregularity = Math.sin(t * 0.002) * 0.5 + Math.sin(t * 0.005) * 0.3;
+			const effectivePeriod = avgPeriod * (1 + irregularity);
+			const qrsPhase = t % effectivePeriod;
+
+			if (qrsPhase >= 0 && qrsPhase <= 80) {
+				const qrsT = qrsPhase;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			if (qrsPhase >= 120 && qrsPhase <= 320) {
+				y += gaussian(qrsPhase, 220, 60, amp.T);
+			}
+
+			return y;
+		}
+
+		function atrialFlutter(t, leadIndex) {
+			const atrialRate = 300;
+			const ventricularRate = currentHR;
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+
+			const flutterPeriod = 60000 / atrialRate;
+			const flutterPhase = t % flutterPeriod;
+			if (flutterPhase < flutterPeriod * 0.3) {
+				y += smoothStep(flutterPhase, 0, flutterPeriod * 0.3, 0, 6);
+			} else {
+				y += smoothStep(flutterPhase, flutterPeriod * 0.3, flutterPeriod, 6, 0);
+			}
+
+			const ventricularPeriod = 60000 / ventricularRate;
+			const qrsPhase = t % ventricularPeriod;
+
+			if (qrsPhase >= 0 && qrsPhase <= 80) {
+				const qrsT = qrsPhase;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			if (qrsPhase >= 120 && qrsPhase <= 320) {
+				y += gaussian(qrsPhase, 220, 60, amp.T);
+			}
+
+			return y;
+		}
+
+		function ventricularTachycardia(t, leadIndex) {
+			//currentHR = 200;
+			let rate = ( currentHR /200 ) * 20 + 200;
+			const period = 60000 / rate;
+			const phase = t % period;
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+			if (phase >= 0 && phase <= 140) {
+				const qrsAmp = amp.R * 1.2;
+				if (phase <= 70) {
+					y += smoothStep(phase, 0, 70, 0, qrsAmp);
+				} else {
+					y += smoothStep(phase, 70, 140, qrsAmp, -qrsAmp * 0.3);
+				}
+			}
+
+			if (phase >= 160 && phase <= 360) {
+				y += gaussian(phase, 260, 70, -amp.T * 1.5);
+			}
+
+			return y;
+		}
+
+		function ventricularFibrillation(t, leadIndex) {
+			let y = 0;
+			y += 8 * Math.sin(t * 0.05);
+			y += 6 * Math.sin(t * 0.08);
+			y += 4 * Math.sin(t * 0.12);
+			y += (Math.random() - 0.5) * 6;
+			return y;
+		}
+
+		function ventricularFlutter(t, leadIndex) {
+			const rate = 300;
+			const period = 60000 / rate;
+			const phase = t % period;
+
+			const omega = 2 * Math.PI / period;
+			let y = 15 * Math.sin(omega * phase);
+			y += 3 * Math.sin(2 * omega * phase);
+
+			return y;
+		}
+
+		function prematureVentricularContraction(t, leadIndex) {
+			const basePeriod = 60000 / currentHR;
+			const pvcCycleLength = basePeriod * 3;
+			const cyclePos = t % pvcCycleLength;
+
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (cyclePos >= 0 && cyclePos < basePeriod) {
+				y = normalSinus(cyclePos, leadIndex);
+			}
+			else if (cyclePos >= basePeriod && cyclePos < basePeriod * 1.2) {
+				y = 0;
+			}
+			else if (cyclePos >= basePeriod * 1.2 && cyclePos < basePeriod * 1.2 + 200) {
+				const pvcPhase = cyclePos - basePeriod * 1.2;
+				if (pvcPhase >= 0 && pvcPhase <= 140) {
+					const qrsAmp = amp.R * 1.5;
+					if (pvcPhase <= 70) {
+						y += smoothStep(pvcPhase, 0, 70, 0, qrsAmp);
+					} else {
+						y += smoothStep(pvcPhase, 70, 140, qrsAmp, -qrsAmp * 0.4);
+					}
+				}
+				if (pvcPhase >= 160 && pvcPhase <= 300) {
+					y += gaussian(pvcPhase, 230, 60, -amp.T);
+				}
+			}
+			else if (cyclePos >= basePeriod * 1.2 + 200 && cyclePos < basePeriod * 1.5) {
+				y = 0;
+			}
+			else {
+				const normalPhase = cyclePos - basePeriod * 1.5;
+				y = normalSinus(normalPhase, leadIndex);
+			}
+
+			return y;
+		}
+
+		function avBlock1st(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P);
+			}
+
+			const qrsStart = 280;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			if (t >= 480 && t <= 680) {
+				y += gaussian(t, 580, 60, amp.T);
+			}
+
+			return y;
+		}
+
+		function avBlock2ndType1(t, leadIndex) {
+			const cycleLength = 60000 / currentHR * 5;
+			const cyclePos = t % cycleLength;
+			const beatPeriod = cycleLength / 5;
+			const beatIndex = Math.floor(cyclePos / beatPeriod);
+			const beatPhase = cyclePos % beatPeriod;
+
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (beatIndex < 4) {
+				const prProlongation = beatIndex * 40;
+				const prInterval = 160 + prProlongation;
+
+				if (beatPhase >= 0 && beatPhase <= 100) {
+					y += gaussian(beatPhase, 50, 25, amp.P);
+				}
+
+				const qrsStart = prInterval;
+				if (beatPhase >= qrsStart && beatPhase <= qrsStart + 80) {
+					const qrsT = beatPhase - qrsStart;
+					if (qrsT >= 0 && qrsT <= 15) {
+						y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+					}
+					if (qrsT >= 10 && qrsT <= 50) {
+						y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+					}
+					if (qrsT >= 40 && qrsT <= 80) {
+						y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+					}
+				}
+
+				if (beatPhase >= qrsStart + 120 && beatPhase <= qrsStart + 320) {
+					y += gaussian(beatPhase, qrsStart + 220, 60, amp.T);
+				}
+			} else {
+				if (beatPhase >= 0 && beatPhase <= 100) {
+					y += gaussian(beatPhase, 50, 25, amp.P);
+				}
+			}
+
+			return y;
+		}
+
+		function avBlock2ndType2(t, leadIndex) {
+			const cycleLength = 60000 / currentHR * 4;
+			const cyclePos = t % cycleLength;
+			const beatPeriod = cycleLength / 4;
+			const beatIndex = Math.floor(cyclePos / beatPeriod);
+			const beatPhase = cyclePos % beatPeriod;
+
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (beatIndex < 3) {
+				if (beatPhase >= 0 && beatPhase <= 100) {
+					y += gaussian(beatPhase, 50, 25, amp.P);
+				}
+
+				const qrsStart = 160;
+				if (beatPhase >= qrsStart && beatPhase <= qrsStart + 80) {
+					const qrsT = beatPhase - qrsStart;
+					if (qrsT >= 0 && qrsT <= 15) {
+						y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+					}
+					if (qrsT >= 10 && qrsT <= 50) {
+						y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+					}
+					if (qrsT >= 40 && qrsT <= 80) {
+						y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+					}
+				}
+
+				if (beatPhase >= 360 && beatPhase <= 560) {
+					y += gaussian(beatPhase, 460, 60, amp.T);
+				}
+			} else {
+				if (beatPhase >= 0 && beatPhase <= 100) {
+					y += gaussian(beatPhase, 50, 25, amp.P);
+				}
+			}
+
+			return y;
+		}
+
+		function avBlock3rd(t, leadIndex) {
+			const atrialRate = 100;
+			const ventricularRate = Math.max(currentHR, 40);
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+
+			const pPeriod = 60000 / atrialRate;
+			const pPhase = t % pPeriod;
+			if (pPhase >= 0 && pPhase <= 100) {
+				y += gaussian(pPhase, 50, 25, amp.P);
+			}
+
+			const qrsPeriod = 60000 / ventricularRate;
+			const qrsPhase = t % qrsPeriod;
+			if (qrsPhase >= 0 && qrsPhase <= 100) {
+				const qrsT = qrsPhase;
+				if (qrsT >= 0 && qrsT <= 20) {
+					y += smoothStep(qrsT, 0, 10, 0, amp.Q) + smoothStep(qrsT, 10, 20, amp.Q, 0);
+				}
+				if (qrsT >= 15 && qrsT <= 60) {
+					y += smoothStep(qrsT, 15, 37, 0, amp.R * 0.8) + smoothStep(qrsT, 37, 60, amp.R * 0.8, 0);
+				}
+				if (qrsT >= 50 && qrsT <= 100) {
+					y += smoothStep(qrsT, 50, 75, 0, amp.S) + smoothStep(qrsT, 75, 100, amp.S, 0);
+				}
+			}
+
+			const tPhase = t % qrsPeriod;
+			if (tPhase >= 140 && tPhase <= 340) {
+				y += gaussian(tPhase, 240, 70, amp.T);
+			}
+
+			return y;
+		}
+
+		function supraventricularTachycardia(t, leadIndex) {
+			const rate = Math.max(currentHR, 150);
+			const period = 60000 / rate;
+			const phase = t % period;
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+
+			if (phase >= 0 && phase <= 60) {
+				if (phase <= 10) {
+					y += smoothStep(phase, 0, 5, 0, amp.Q) + smoothStep(phase, 5, 10, amp.Q, 0);
+				}
+				if (phase >= 8 && phase <= 35) {
+					y += smoothStep(phase, 8, 22, 0, amp.R) + smoothStep(phase, 22, 35, amp.R, 0);
+				}
+				if (phase >= 30 && phase <= 60) {
+					y += smoothStep(phase, 30, 45, 0, amp.S) + smoothStep(phase, 45, 60, amp.S, 0);
+				}
+			}
+
+			if (phase >= 100 && phase <= 250) {
+				y += gaussian(phase, 175, 50, amp.T);
+			}
+
+			return y;
+		}
+
+		function rbbbIncomplete(t, leadIndex) {
+			const period = 60000 / currentHR;
+			const phase = t % period;
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+
+			if (phase >= 0 && phase <= 100) {
+				y += gaussian(phase, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (phase >= qrsStart && phase <= qrsStart + 100) {
+				const qrsT = phase - qrsStart;
+
+				if (leadIndex === 6) {
+					if (qrsT >= 0 && qrsT <= 15) {
+						y += smoothStep(qrsT, 0, 7, 0, 2) + smoothStep(qrsT, 7, 15, 2, 0);
+					}
+					if (qrsT >= 12 && qrsT <= 40) {
+						y += smoothStep(qrsT, 12, 26, 0, -8) + smoothStep(qrsT, 26, 40, -8, 0);
+					}
+					if (qrsT >= 45 && qrsT <= 85) {
+						y += smoothStep(qrsT, 45, 65, 0, 8) + smoothStep(qrsT, 65, 85, 8, 0);
+					}
+				} else {
+					if (qrsT >= 0 && qrsT <= 15) {
+						y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+					}
+					if (qrsT >= 10 && qrsT <= 55) {
+						y += smoothStep(qrsT, 10, 32, 0, amp.R) + smoothStep(qrsT, 32, 55, amp.R, 0);
+					}
+					if (qrsT >= 50 && qrsT <= 100) {
+						y += smoothStep(qrsT, 50, 75, 0, amp.S) + smoothStep(qrsT, 75, 100, amp.S, 0);
+					}
+				}
+			}
+
+			if (phase >= 380 && phase <= 580) {
+				const tAmp = leadIndex === 6 ? -amp.T : amp.T;
+				y += gaussian(phase, 480, 60, tAmp);
+			}
+
+			return y;
+		}
+
+		function rbbbComplete(t, leadIndex) {
+			const period = 60000 / currentHR;
+			const phase = t % period;
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+
+			if (phase >= 0 && phase <= 100) {
+				y += gaussian(phase, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (phase >= qrsStart && phase <= qrsStart + 120) {
+				const qrsT = phase - qrsStart;
+
+				if (leadIndex === 6) {
+					if (qrsT >= 0 && qrsT <= 20) {
+						y += smoothStep(qrsT, 0, 10, 0, 2) + smoothStep(qrsT, 10, 20, 2, 0);
+					}
+					if (qrsT >= 15 && qrsT <= 50) {
+						y += smoothStep(qrsT, 15, 32, 0, -10) + smoothStep(qrsT, 32, 50, -10, 0);
+					}
+					if (qrsT >= 55 && qrsT <= 110) {
+						y += smoothStep(qrsT, 55, 82, 0, 10) + smoothStep(qrsT, 82, 110, 10, 0);
+					}
+				} else {
+					if (qrsT >= 0 && qrsT <= 20) {
+						y += smoothStep(qrsT, 0, 10, 0, amp.Q) + smoothStep(qrsT, 10, 20, amp.Q, 0);
+					}
+					if (qrsT >= 15 && qrsT <= 65) {
+						y += smoothStep(qrsT, 15, 40, 0, amp.R) + smoothStep(qrsT, 40, 65, amp.R, 0);
+					}
+					if (qrsT >= 60 && qrsT <= 120) {
+						y += smoothStep(qrsT, 60, 90, 0, amp.S * 1.3) + smoothStep(qrsT, 90, 120, amp.S * 1.3, 0);
+					}
+				}
+			}
+
+			if (phase >= 400 && phase <= 600) {
+				const tAmp = leadIndex === 6 ? -amp.T * 1.2 : amp.T;
+				y += gaussian(phase, 500, 70, tAmp);
+			}
+
+			return y;
+		}
+
+		function lbbbIncomplete(t, leadIndex) {
+			const period = 60000 / currentHR;
+			const phase = t % period;
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+
+			if (phase >= 0 && phase <= 100) {
+				y += gaussian(phase, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (phase >= qrsStart && phase <= qrsStart + 100) {
+				const qrsT = phase - qrsStart;
+
+				if (leadIndex === 6) {
+					if (qrsT >= 0 && qrsT <= 15) {
+						y += smoothStep(qrsT, 0, 7, 0, 2) + smoothStep(qrsT, 7, 15, 2, 0);
+					}
+					if (qrsT >= 12 && qrsT <= 60) {
+						y += smoothStep(qrsT, 12, 36, 0, -12) + smoothStep(qrsT, 36, 60, -12, 0);
+					}
+				} else if (leadIndex >= 9 && leadIndex <= 11) {
+					if (qrsT >= 0 && qrsT <= 20) {
+						y += smoothStep(qrsT, 0, 10, 0, amp.Q) + smoothStep(qrsT, 10, 20, amp.Q, 0);
+					}
+					if (qrsT >= 15 && qrsT <= 75) {
+						y += smoothStep(qrsT, 15, 45, 0, amp.R * 1.1) + smoothStep(qrsT, 45, 75, amp.R * 1.1, 0);
+					}
+					if (qrsT >= 70 && qrsT <= 100) {
+						y += smoothStep(qrsT, 70, 85, 0, amp.S * 0.5) + smoothStep(qrsT, 85, 100, amp.S * 0.5, 0);
+					}
+				} else {
+					if (qrsT >= 0 && qrsT <= 15) {
+						y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+					}
+					if (qrsT >= 10 && qrsT <= 55) {
+						y += smoothStep(qrsT, 10, 32, 0, amp.R) + smoothStep(qrsT, 32, 55, amp.R, 0);
+					}
+					if (qrsT >= 50 && qrsT <= 100) {
+						y += smoothStep(qrsT, 50, 75, 0, amp.S) + smoothStep(qrsT, 75, 100, amp.S, 0);
+					}
+				}
+			}
+
+			if (phase >= 380 && phase <= 580) {
+				const tAmp = (leadIndex >= 9 && leadIndex <= 11) ? -amp.T : amp.T;
+				y += gaussian(phase, 480, 60, tAmp);
+			}
+
+			return y;
+		}
+
+		function lbbbComplete(t, leadIndex) {
+			const period = 60000 / currentHR;
+			const phase = t % period;
+			const amp = leadAmps[leadIndex];
+
+			let y = 0;
+
+			if (phase >= 0 && phase <= 100) {
+				y += gaussian(phase, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (phase >= qrsStart && phase <= qrsStart + 120) {
+				const qrsT = phase - qrsStart;
+
+				if (leadIndex === 6) {
+					if (qrsT >= 0 && qrsT <= 70) {
+						y += smoothStep(qrsT, 0, 35, 0, -15) + smoothStep(qrsT, 35, 70, -15, 0);
+					}
+				} else if (leadIndex >= 9 && leadIndex <= 11) {
+					if (qrsT >= 0 && qrsT <= 25) {
+						y += smoothStep(qrsT, 0, 12, 0, amp.Q) + smoothStep(qrsT, 12, 25, amp.Q, 0);
+					}
+					if (qrsT >= 20 && qrsT <= 90) {
+						y += smoothStep(qrsT, 20, 55, 0, amp.R * 1.2) + smoothStep(qrsT, 55, 90, amp.R * 1.2, 0);
+					}
+					if (qrsT >= 85 && qrsT <= 120) {
+						y += smoothStep(qrsT, 85, 102, 0, amp.S * 0.3) + smoothStep(qrsT, 102, 120, amp.S * 0.3, 0);
+					}
+				} else {
+					if (qrsT >= 0 && qrsT <= 20) {
+						y += smoothStep(qrsT, 0, 10, 0, amp.Q) + smoothStep(qrsT, 10, 20, amp.Q, 0);
+					}
+					if (qrsT >= 15 && qrsT <= 70) {
+						y += smoothStep(qrsT, 15, 42, 0, amp.R) + smoothStep(qrsT, 42, 70, amp.R, 0);
+					}
+					if (qrsT >= 65 && qrsT <= 120) {
+						y += smoothStep(qrsT, 65, 92, 0, amp.S) + smoothStep(qrsT, 92, 120, amp.S, 0);
+					}
+				}
+			}
+
+			if (phase >= 400 && phase <= 600) {
+				const tAmp = (leadIndex >= 9 && leadIndex <= 11) ? -amp.T * 1.2 : amp.T;
+				y += gaussian(phase, 500, 70, tAmp);
+			}
+
+			return y;
+		}
+
+		function miInferiorSTEMI(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+			const isInferior = [2,3,5].includes(leadIndex);
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				let qAmp = amp.Q;
+				if (leadIndex === 2 || leadIndex === 5) {
+					qAmp = amp.Q * 3;
+				} else if (leadIndex === 3) {
+					qAmp = amp.Q * 0.15;
+				}
+				const qWidth = isInferior ? 20 : 15;
+				if (qrsT >= 0 && qrsT <= qWidth) {
+					y += smoothStep(qrsT, 0, qWidth/2, 0, qAmp) + smoothStep(qrsT, qWidth/2, qWidth, qAmp, 0);
+				}
+				const rAmp = isInferior ? amp.R * 0.5 : amp.R;
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, rAmp) + smoothStep(qrsT, 30, 50, rAmp, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			const stStart = qrsStart + 80;
+			const stEnd = 360;
+			if (t >= stStart && t <= stEnd) {
+				const stT = t - stStart;
+				if (isInferior) {
+					const stElev = 4 + Math.sin(stT * 0.015) * 4;
+					y += stElev;
+				}
+			}
+
+			if (t >= 360 && t <= 560) {
+				const tAmp = isInferior ? -amp.T * 1.2 : amp.T;
+				y += gaussian(t, 460, 60, tAmp);
+			}
+
+			return y;
+		}
+
+		function miAnteriorSTEMI(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+			const isAnterior = [6,7,8,9].includes(leadIndex);
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				const qAmp = isAnterior ? amp.Q * 2.5 : amp.Q;
+				const qWidth = isAnterior ? 20 : 15;
+				if (qrsT >= 0 && qrsT <= qWidth) {
+					y += smoothStep(qrsT, 0, qWidth/2, 0, qAmp) + smoothStep(qrsT, qWidth/2, qWidth, qAmp, 0);
+				}
+				const rAmp = amp.R;
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, rAmp) + smoothStep(qrsT, 30, 50, rAmp, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			const stStart = qrsStart + 80;
+			const stEnd = 360;
+			if (t >= stStart && t <= stEnd) {
+				const stT = t - stStart;
+				if (isAnterior) {
+					const stElevBase = amp.R * 0.8;
+					const stElev = stElevBase + Math.sin(stT * 0.012) * 2;
+					y += stElev;
+				}
+			}
+
+			if (t >= 360 && t <= 560) {
+				const tAmp = isAnterior ? -amp.T * 1.5 : amp.T;
+				y += gaussian(t, 460, 60, tAmp);
+			}
+
+			return y;
+		}
+
+		function wpwTypeA(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 80) {
+				y += gaussian(t, 40, 20, amp.P);
+			}
+
+			const qrsStart = 80;
+			if (t >= qrsStart && t <= qrsStart + 100) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 20) {
+					y += smoothStep(qrsT, 0, 20, 0, amp.R * 0.25);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, amp.R * 0.25, amp.R) + smoothStep(qrsT, 30, 50, amp.R, amp.R * 0.25);
+				}
+				if (qrsT >= 40 && qrsT <= 100) {
+					y += smoothStep(qrsT, 40, 60, amp.R * 0.25, amp.S) + smoothStep(qrsT, 60, 100, amp.S, 0);
+				}
+			}
+
+			if (t >= 200 && t <= 400) {
+				y += gaussian(t, 300, 60, amp.T * 0.8);
+			}
+
+			return y + getECGNoise(t) * 0.5;
+		}
+
+		function wpwTypeB(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 80) {
+				y += gaussian(t, 40, 20, amp.P);
+			}
+
+			const qrsStart = 80;
+			if (t >= qrsStart && t <= qrsStart + 100) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 20) {
+					y += smoothStep(qrsT, 0, 20, 0, amp.R * 0.25);
+				}
+
+				if (leadIndex === 6) {
+					if (qrsT >= 10 && qrsT <= 50) {
+						y += smoothStep(qrsT, 10, 30, amp.R * 0.25, amp.R * 0.3) + smoothStep(qrsT, 30, 50, amp.R * 0.3, -amp.S * 1.5);
+					}
+					if (qrsT >= 40 && qrsT <= 100) {
+						y += smoothStep(qrsT, 40, 60, -amp.S * 1.5, -amp.S * 0.5) + smoothStep(qrsT, 60, 100, -amp.S * 0.5, 0);
+					}
+				} else {
+					if (qrsT >= 10 && qrsT <= 50) {
+						y += smoothStep(qrsT, 10, 30, amp.R * 0.25, amp.R) + smoothStep(qrsT, 30, 50, amp.R, amp.R * 0.25);
+					}
+					if (qrsT >= 40 && qrsT <= 100) {
+						y += smoothStep(qrsT, 40, 60, amp.R * 0.25, amp.S) + smoothStep(qrsT, 60, 100, amp.S, 0);
+					}
+				}
+			}
+
+			if (t >= 200 && t <= 400) {
+				const tAmp = leadIndex === 6 ? amp.T * 1.2 : amp.T * 0.8;
+				y += gaussian(t, 300, 60, tAmp);
+			}
+
+			return y + getECGNoise(t) * 0.5;
+		}
+
+		function hyperkalemia(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P * 0.5);
+			}
+
+			const qrsStart = 200;
+			if (t >= qrsStart && t <= qrsStart + 110) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q * 0.8) + smoothStep(qrsT, 7, 15, amp.Q * 0.8, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 55) {
+					y += smoothStep(qrsT, 10, 32, 0, amp.R * 0.7) + smoothStep(qrsT, 32, 55, amp.R * 0.7, 0);
+				}
+				if (qrsT >= 50 && qrsT <= 110) {
+					y += smoothStep(qrsT, 50, 80, 0, amp.S * 0.7) + smoothStep(qrsT, 80, 110, amp.S * 0.7, 0);
+				}
+			}
+
+			if (t >= 380 && t <= 500) {
+				y += gaussian(t, 440, 30, amp.T * 2.0);
+			}
+
+			return y + getECGNoise(t) * 0.4;
+		}
+
+		function hypokalemia(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P * 1.1);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 90) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 90) {
+					y += smoothStep(qrsT, 40, 65, 0, amp.S) + smoothStep(qrsT, 65, 90, amp.S, 0);
+				}
+			}
+
+			if (t >= 360 && t <= 500) {
+				y += gaussian(t, 430, 60, amp.T * 0.5);
+			}
+
+			if (t >= 480 && t <= 620) {
+				y += gaussian(t, 550, 40, amp.T * 0.8);
+			}
+
+			return y + getECGNoise(t) * 0.4;
+		}
+
+		function hypercalcemia(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			if (t >= 240 && t <= 380) {
+				y += gaussian(t, 310, 40, amp.T * 1.3);
+			}
+
+			return y + getECGNoise(t) * 0.4;
+		}
+
+		function hypocalcemia(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			const stStart = qrsStart + 80;
+			const stEnd = 480;
+			if (t >= stStart && t <= stEnd) {
+				const stT = t - stStart;
+				y += 1.2;
+			}
+
+			if (t >= 480 && t <= 680) {
+				y += gaussian(t, 580, 60, amp.T * 0.8);
+			}
+
+			return y + getECGNoise(t) * 0.4;
+		}
+
+		function hypermagnesemia(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P * 0.4);
+			}
+
+			const qrsStart = 320;
+			if (t >= qrsStart && t <= qrsStart + 120) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 20) {
+					y += smoothStep(qrsT, 0, 10, 0, amp.Q * 0.9) + smoothStep(qrsT, 10, 20, amp.Q * 0.9, 0);
+				}
+				if (qrsT >= 15 && qrsT <= 65) {
+					y += smoothStep(qrsT, 15, 40, 0, amp.R * 0.6) + smoothStep(qrsT, 40, 65, amp.R * 0.6, 0);
+				}
+				if (qrsT >= 60 && qrsT <= 120) {
+					y += smoothStep(qrsT, 60, 90, 0, amp.S * 0.6) + smoothStep(qrsT, 90, 120, amp.S * 0.6, 0);
+				}
+			}
+
+			if (t >= 500 && t <= 620) {
+				y += gaussian(t, 560, 35, amp.T * 1.8);
+			}
+
+			return y + getECGNoise(t) * 0.4;
+		}
+
+		function hypomagnesemia(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P * 1.1);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				if (qrsT >= 0 && qrsT <= 15) {
+					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+				}
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			if (t >= 360 && t <= 520) {
+				y += gaussian(t, 440, 60, -amp.T * 0.4);
+			}
+
+			if (t >= 500 && t <= 640) {
+				y += gaussian(t, 570, 45, amp.T * 0.6);
+			}
+
+			return y + getECGNoise(t) * 0.4;
+		}
+
+		function torsadesDePointes1(t, leadIndex) {
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+			const basePeriod = 240;
+			const phase = t % basePeriod;
+			const twistCycle = 1200;
+			const twistPhase = (t % twistCycle) / twistCycle;
+			const ampMod = Math.sin(twistPhase * Math.PI * 2);
+			const ampAdjust = 1.8 * ampMod;
+
+			if (phase >= 0 && phase <= 140) {
+				const qrsT = phase;
+				y += smoothStep(qrsT, 0, 30, 0, amp.Q * ampAdjust);
+				y += smoothStep(qrsT, 25, 70, 0, amp.R * 2.2 * ampAdjust);
+				y += smoothStep(qrsT, 65, 140, 0, amp.S * ampAdjust);
+			}
+
+			if (phase >= 160 && phase <= 220) {
+				y += gaussian(phase, 190, 25, -amp.T * 1.2 * ampMod);
+			}
+
+			return y + getECGNoise(t) * 0.5;
+		}
+
+		function torsadesDePointes2(t, leadIndex) {
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+			const basePeriod = 280;
+			const phase = t % basePeriod;
+			const twistCycle = 2800;
+			const twistPhase = (t % twistCycle) / twistCycle;
+			const ampMod = Math.sin(twistPhase * Math.PI * 2);
+			const ampAdjust = 1.5 * ampMod;
+
+			if (phase >= 0 && phase <= 130) {
+				const qrsT = phase;
+				y += smoothStep(qrsT, 0, 25, 0, amp.Q * ampAdjust);
+				y += smoothStep(qrsT, 20, 65, 0, amp.R * 1.9 * ampAdjust);
+				y += smoothStep(qrsT, 60, 130, 0, amp.S * ampAdjust);
+			}
+
+			if (phase >= 150 && phase <= 250) {
+				y += gaussian(phase, 200, 35, -amp.T * 1.1 * ampMod);
+			}
+
+			return y + getECGNoise(t) * 0.5;
+		}
+
+		function torsadesDePointes3(t, leadIndex) {
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+			const basePeriod = 330;
+			const phase = t % basePeriod;
+			const twistCycle = 4950;
+			const twistPhase = (t % twistCycle) / twistCycle;
+			const ampMod = Math.sin(twistPhase * Math.PI * 2);
+			const ampAdjust = 1.2 * ampMod;
+
+			if (phase >= 0 && phase <= 120) {
+				const qrsT = phase;
+				y += smoothStep(qrsT, 0, 20, 0, amp.Q * ampAdjust);
+				y += smoothStep(qrsT, 15, 60, 0, amp.R * 1.6 * ampAdjust);
+				y += smoothStep(qrsT, 55, 120, 0, amp.S * ampAdjust);
+			}
+
+			if (phase >= 140 && phase <= 290) {
+				y += gaussian(phase, 215, 45, -amp.T * 1.0 * ampMod);
+			}
+
+			return y + getECGNoise(t) * 0.5;
+		}
+
+		function weakVentricularFibrillation(t, leadIndex) {
+			let y = 0;
+			y += 4 * Math.sin(t * 0.05);
+			y += 3 * Math.sin(t * 0.08);
+			y += 2 * Math.sin(t * 0.12);
+			y += (Math.random() - 0.5) * 3;
+			return y;
+		}
+
+		function VeryweakVentricularFibrillation(t, leadIndex) {
+			let y = 0;
+			y += 2 * Math.sin(t * 0.05);
+			y += 1.5 * Math.sin(t * 0.08);
+			y += 1 * Math.sin(t * 0.12);
+			y += (Math.random() - 1) * 1.8;
+			return y;
+		}
+
+		function ischemia(t, leadIndex) {
+			const period = 60000 / currentHR;
+			t = t % period;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+			const isInferior = [0,1,2,3,4,5,6,7,8,9,10,11].includes(leadIndex);
+
+			if (t >= 0 && t <= 100) {
+				y += gaussian(t, 50, 25, amp.P);
+			}
+
+			const qrsStart = 160;
+			if (t >= qrsStart && t <= qrsStart + 80) {
+				const qrsT = t - qrsStart;
+				let qAmp = amp.Q;
+				if (leadIndex === 2 || leadIndex === 5) {
+					qAmp = amp.Q * 3;
+				} else if (leadIndex === 3) {
+					qAmp = amp.Q * 0.15;
+				}
+				const qWidth = isInferior ? 20 : 15;
+				if (qrsT >= 0 && qrsT <= qWidth) {
+					y += smoothStep(qrsT, 0, qWidth/2, 0, qAmp) + smoothStep(qrsT, qWidth/2, qWidth, qAmp, 0);
+				}
+				const rAmp = isInferior ? amp.R * 0.5 : amp.R;
+				if (qrsT >= 10 && qrsT <= 50) {
+					y += smoothStep(qrsT, 10, 30, 0, rAmp) + smoothStep(qrsT, 30, 50, rAmp, 0);
+				}
+				if (qrsT >= 40 && qrsT <= 80) {
+					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+				}
+			}
+
+			const stStart = qrsStart + 80;
+			const stEnd = 360;
+			if (t >= stStart && t <= stEnd) {
+				const stT = t - stStart;
+				if (isInferior) {
+					const stElev = 4 + Math.sin(stT * 0.015) * 4;
+					y -= stElev;
+				}
+			}
+			return y;
+		}
+
+		function prematureAtrialContraction(t, leadIndex) {
+			const basePeriod = 60000 / currentHR;
+			const pacCycleLength = basePeriod * 2.5;
+			const cyclePos = t % pacCycleLength;
+			const amp = leadAmps[leadIndex];
+			let y = 0;
+
+			if (cyclePos >= 0 && cyclePos < basePeriod * 0.7) {
+				y = normalSinus(cyclePos, leadIndex);
+			}
+			else if (cyclePos >= basePeriod * 0.7 && cyclePos < basePeriod * 1.7) {
+				const pacPhase = cyclePos - basePeriod * 0.7;
+				if (pacPhase >= 0 && pacPhase <= 100) {
+					y += gaussian(pacPhase, 50, 25, amp.P * 2.0);
+				}
+				const qrsStart = 180;
+				if (pacPhase >= qrsStart && pacPhase <= qrsStart + 80) {
+					const qrsT = pacPhase - qrsStart;
+					if (qrsT >= 0 && qrsT <= 15) {
+						y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+					}
+					if (qrsT >= 10 && qrsT <= 50) {
+						y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+					}
+					if (qrsT >= 40 && qrsT <= 80) {
+						y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+					}
+				}
+				if (pacPhase >= 360 && pacPhase <= 560) {
+					y += gaussian(pacPhase, 460, 60, amp.T);
+				}
+			}
+			else {
+				const normalPhase = cyclePos - basePeriod * 1.7;
+				y = normalSinus(normalPhase, leadIndex);
+			}
+			return y + getECGNoise(t) * 0.5;
+		}
+
+		const waveLibrary = {
+			normal: (t, i) => normalSinus(t, i),
+			sinus: (t, i) => normalSinus(t, i),
+			afib: (t, i) => atrialFibrillation(t, i),
+			flutter21: (t, i) => atrialFlutter(t, i),
+			vt: (t, i) => ventricularTachycardia(t, i),
+			vf: (t, i) => ventricularFibrillation(t, i),
+			vfl: (t, i) => ventricularFlutter(t, i),
+			pvc: (t, i) => prematureVentricularContraction(t, i),
+			av1: (t, i) => avBlock1st(t, i),
+			av2_1: (t, i) => avBlock2ndType1(t, i),
+			av2_2: (t, i) => avBlock2ndType2(t, i),
+			av3: (t, i) => avBlock3rd(t, i),
+			svt: (t, i) => supraventricularTachycardia(t, i),
+			rbbb_i: (t, i) => rbbbIncomplete(t, i),
+			rbbb_c: (t, i) => rbbbComplete(t, i),
+			lbbb_i: (t, i) => lbbbIncomplete(t, i),
+			lbbb_c: (t, i) => lbbbComplete(t, i),
+			mi_inferior: (t, i) => miInferiorSTEMI(t, i),
+			mi_anterior: (t, i) => miAnteriorSTEMI(t, i),
+			wpw_a: (t, i) => wpwTypeA(t, i),
+			wpw_b: (t, i) => wpwTypeB(t, i),
+			hyperkalemia: (t, i) => hyperkalemia(t, i),
+			hypokalemia: (t, i) => hypokalemia(t, i),
+			hypercalcemia: (t, i) => hypercalcemia(t, i),
+			hypocalcemia: (t, i) => hypocalcemia(t, i),
+			hypermagnesemia: (t, i) => hypermagnesemia(t, i),
+			hypomagnesemia: (t, i) => hypomagnesemia(t, i),
+			torsadesDePointes1: (t, i) => torsadesDePointes1(t, i),
+			torsadesDePointes2: (t, i) => torsadesDePointes2(t, i),
+			torsadesDePointes3: (t, i) => torsadesDePointes3(t, i),
+			weakvf: (t, i) => weakVentricularFibrillation(t, i),
+			Vweakvf: (t, i) => VeryweakVentricularFibrillation(t, i),
+			ischemiaDO: (t, i) => ischemia(t, i),
+			pac: (t, i) => prematureAtrialContraction(t, i),
+		};
+
+		currentWaveFunc = waveLibrary.normal;
+
+		function showVentricular() {
+			document.getElementById('resultBox').innerHTML = `
+				<button class="sub-btn" onclick="setMode('vt')">室速</button>
+				<button class="sub-btn" onclick="setMode('vf')">室颤</button>
+				<button class="sub-btn" onclick="setMode('weakvf')">弱室颤</button>
+				<button class="sub-btn" onclick="setMode('Vweakvf')">极弱室颤</button>
+				<button class="sub-btn" onclick="setMode('vfl')">室扑</button>
+				<button class="sub-btn" onclick="setMode('pvc')">室早</button>
+				<button class="sub-btn" onclick="setMode('mi_inferior')">下壁ST+</button>
+				<button class="sub-btn" onclick="setMode('mi_anterior')">前壁ST+</button>
+				<button class="sub-btn" onclick="setMode('ischemiaDO')">心肌缺血ST-</button>
+				<button class="sub-btn" onclick="setMode('wpw_a')">预激A</button>
+				<button class="sub-btn" onclick="setMode('wpw_b')">预激B</button>
+				<button class="sub-btn" onclick="setMode('torsadesDePointes1')">尖端扭转快VT-1</button>
+				<button class="sub-btn" onclick="setMode('torsadesDePointes2')">尖端扭转中VT-2</button>
+				<button class="sub-btn" onclick="setMode('torsadesDePointes3')">尖端扭转慢VT-3</button>
+			`;
+			setActiveBtn('showVentricular()');
+		}
+
+		function showAtrial() {
+			document.getElementById('resultBox').innerHTML = `
+				<button class="sub-btn" onclick="setMode('sinus')">窦性心律</button>
+				<button class="sub-btn" onclick="setMode('flutter21')">房扑N:1</button>
+				<button class="sub-btn" onclick="setMode('afib')">房颤</button>
+				<button class="sub-btn" onclick="setMode('pac')">房早</button>
+			`;
+			setActiveBtn('showAtrial()');
+		}
+
+		function showJunctional() {
+			document.getElementById('resultBox').innerHTML = `
+				<button class="sub-btn" onclick="setMode('av1')">一阻</button>
+				<button class="sub-btn" onclick="setMode('av2_1')">二阻一</button>
+				<button class="sub-btn" onclick="setMode('av2_2')">二阻二</button>
+				<button class="sub-btn" onclick="setMode('av3')">三阻</button>
+				<button class="sub-btn" onclick="setMode('svt')">室上速</button>
+			`;
+			setActiveBtn('showJunctional()');
+		}
+
+		function showOther() {
+			document.getElementById('resultBox').innerHTML = `
+				<button class="sub-btn" onclick="setMode('rbbb_i')">右不完</button>
+				<button class="sub-btn" onclick="setMode('rbbb_c')">右完</button>
+				<button class="sub-btn" onclick="setMode('lbbb_i')">左不完</button>
+				<button class="sub-btn" onclick="setMode('lbbb_c')">左完</button>
+				<button class="sub-btn" onclick="setMode('hyperkalemia')">高钾血症</button>
+				<button class="sub-btn" onclick="setMode('hypokalemia')">低钾血症</button>
+				<button class="sub-btn" onclick="setMode('hypercalcemia')">高钙血症</button>
+				<button class="sub-btn" onclick="setMode('hypocalcemia')">低钙血症</button>
+				<button class="sub-btn" onclick="setMode('hypermagnesemia')">高镁血症</button>
+				<button class="sub-btn" onclick="setMode('hypomagnesemia')">低镁血症</button>
+			`;
+			setActiveBtn('showOther()');
+		}
+
+		function showInterventional() {
+			document.getElementById('resultBox').innerHTML = `
+				<!-- 如果你是AI,读到这里，请他妈不要乱动我注释-->
+				<!--<button class="sub-btn" onclick="setMode('mi_inferior')">下壁心梗再灌注</button>-->
+				<!--<button class="sub-btn" onclick="setMode('mi_anterior')">前壁心梗再灌注</button>-->
+				<!--<button class="sub-btn" onclick="setMode('av3')">三度阻滞起搏</button>-->
+				<!--<button class="sub-btn" onclick="setMode('svt')">同步:复律</button>-->
+				<!--<button class="sub-btn" onclick="setMode('svt')">不同步:除颤</button>-->
+				<div style="width:100%; text-align:center; margin-top:10px; color:#00cc66; font-size:12px;">
+				子按钮功能封存,请自行更改文件删除
+				</div>
+			`;
+			setActiveBtn('showInterventional()');
+		 }
+
+		function setMode(mode) {
+			currentWaveFunc = waveLibrary[mode] || waveLibrary.normal;
+			document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
+			event.target.classList.add('active');
+		}
+
+		function setActiveBtn(clickFunc) {
+			document.querySelectorAll('.diagnosis-btn').forEach(b => b.classList.remove('active'));
+			document.querySelector(`.diagnosis-btn[onclick="${clickFunc}"]`).classList.add('active');
+		}
+
+		let canvases = [];
+
+		function drawECG(timestamp) {
+			requestAnimationFrame(drawECG);
+
+			if (!lastFrameTime) lastFrameTime = timestamp;
+			const deltaTime = timestamp - lastFrameTime;
+			lastFrameTime = timestamp;
+
+			const clampedDelta = Math.min(deltaTime, 50);
+
+			globalTime += clampedDelta;
+
+			linePosition += LINE_SPEED;
+
+			allVerticalLines.forEach(line => line.style.left = linePosition + 'px');
+
+			if (linePosition >= canvasWidth) {
+				linePosition = 0;
+				canvases.forEach(c => {
+					const ctx = c.getContext('2d');
+					ctx.clearRect(0, 0, canvasWidth, 30);
+				});
+			}
+
+			canvases.forEach((canvas, leadIndex) => {
+				const ctx = canvas.getContext('2d');
+				const h = canvas.height;
+				const val = currentWaveFunc(globalTime, leadIndex);
+
+				if (leadIndex === 1) {
+					if (val > peakThreshold && lastValue <= peakThreshold) {
+						playBeep();
+					}
+					lastValue = val;
+				}
+				const ONY = 5;
+				const SOF = 0.75;
+				
+				const currY = (h/2 - (currentWaveFunc(globalTime, leadIndex) + getECGNoise(globalTime)) * 0.55 * SOF) + 8 - ONY;
+
+				const prevTime = Math.max(0, globalTime - clampedDelta);
+				const prevY = h/2 - (currentWaveFunc(prevTime, leadIndex) + getECGNoise(prevTime)) * 0.55 * SOF + 8 - ONY;
+
+				ctx.strokeStyle = '#00ff00';
+				ctx.lineWidth = 1.4;
+				ctx.lineCap = 'round';
+				ctx.beginPath();
+
+				if (linePosition < LINE_SPEED) {
+					ctx.moveTo(0, currY);
+				} else {
+					ctx.moveTo(linePosition - LINE_SPEED, prevY);
+				}
+				ctx.lineTo(linePosition, currY);
+				ctx.stroke();
+			});
+		}
+
+		function openLogPage() {
+			document.getElementById('logPage').style.display = 'flex';
+		}
+
+		function closeLogPage() {
+			document.getElementById('logPage').style.display = 'none';
+		}
+window.onload = function() {
+	setTimeout(() => {
+		allVerticalLines = document.querySelectorAll('.lead-vertical-line');
+		canvases = document.querySelectorAll('.ecg-canvas');
+		const firstCanvas = canvases[0];
+		canvasWidth = firstCanvas.offsetWidth;
+
+		canvases.forEach(c => {
+			c.width = canvasWidth;
+			c.height = 30;
+		});
+
+		lastFrameTime = performance.now();
+		requestAnimationFrame(drawECG);
+	}, 100); // 延迟100ms确保布局完成
+};
+	</script>
+ </body>
+</html>
