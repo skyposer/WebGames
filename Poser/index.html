@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>个人简介主页</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+			  user-select: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+		}
+		html, body {
+			width: 100%;
+			height: 100%;
+		}
+
+		/* 中文：宋体（笔锋明显、粗细分明），英文温和斜体 */
+		body {
+			font-family: "SimSun", "STSong", "Georgia", serif;
+		}
+
+		/* 英文：干净斜体，不连笔 */
+		.english {
+			font-family: "Georgia", "Times New Roman", serif;
+			font-style: italic;
+		}
+
+		.wrap {
+			width: 100vw;
+			height: 100vh;
+			background: rgba(0, 12, 28, 0.62);
+			backdrop-filter: blur(14px);
+			position: relative;
+			overflow-y: auto;
+			overflow-x: hidden;
+		}
+		.bg-top-layer {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 7cm;
+			background: url("top-bg.jpg") no-repeat center center;
+			background-size: cover;
+			mask-image: linear-gradient(to bottom, #000 30%, transparent 100%);
+			-webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent 100%);
+		}
+		.content-box {
+			position: relative;
+			z-index: 2;
+			max-width: 920px;
+			margin: 0 auto;
+			padding: 55px 45px;
+		}
+		.head-box {
+			text-align: center;
+			margin-bottom: 50px;
+			margin-top: 20px;
+		}
+		.avatar {
+			width: 2.5cm;
+			height: 2.5cm;
+			border-radius: 16px;
+			border: 4px solid rgba(90, 170, 255, 0.55);
+			box-shadow: 0 0 25px rgba(66, 153, 255, 0.4);
+			object-fit: cover;
+			display: block;
+			margin: 0 auto;
+		}
+		.name {
+			font-size: 34px;
+			font-weight: 600;
+			letter-spacing: 2px;
+			margin: 22px 0 10px;
+			color: #f0f4f8;
+		}
+		.slogan {
+			font-size: 22px;
+			color: #b8c8e0;
+		}
+		.section-title {
+			font-size: 23px;
+			margin: 55px 0 22px;
+			padding-left: 15px;
+			border-left: 5px solid #54a8ff;
+			color: #f0f4f8;
+		}
+		.content-text {
+			line-height: 2.05;
+			font-size: 17px;
+			color: #e8f0f8;
+			margin-bottom: 28px;
+		}
+		.show-img {
+			width: 100%;
+			border-radius: 18px;
+			border: 2px solid rgba(255,255,255,0.25);
+			box-shadow: 0 8px 24px rgba(0,0,0,0.38);
+			margin: 18px 0 28px;
+			transition: 0.3s ease;
+			padding: 4px;
+			background: rgba(255,255,255,0.05);
+		}
+		.work-img {
+			width: 100%;
+			border-radius: 18px;
+			border: 2px solid rgba(255,255,255,0.25);
+			box-shadow: 0 8px 24px rgba(0,0,0,0.38);
+			margin: 18px 0 28px;
+			transition: transform 0.3s ease;
+			cursor: pointer;
+			padding: 4px;
+			background: rgba(255,255,255,0.05);
+		}
+		.work-img:hover {
+			transform: scale(1.02);
+		}
+		.footer {
+			margin-top: 70px;
+			text-align: center;
+			font-size: 14px;
+			color: #8a9cb3;
+		}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="bg-top-layer"></div>
+		<div class="content-box">
+			<div class="head-box">
+				<img src="avatar.png" alt="头像" class="avatar">
+				<div class="name english">POSER 破晓</div>
+				<div class="slogan english">Poser: Dawn</div>
+			</div>
+
+			<div class="section-title english">About me</div>
+			<div class="content-text">
+				<span class="english">Hello, I'm Poser</span>
+				<br>一个网页游戏独立开发者
+				<br>一个网页游戏移植者
+				<br>Mbti: INTP
+			</div>
+
+			<div class="section-title english">Hobby</div>
+			<div class="content-text">
+HTML+JavaScript开发
+<br>正在学习C++ X86_64
+<br>不学python java了
+<br>整一堆自制编程语言
+<br>然后编译器半途而废
+<br>
+<br>下方是基于X86_64汇编开发的语言
+<br>更人性化，可以编译成X86
+			</div>
+			<img src="img1.jpg" class="show-img">
+			<div class="content-text">
+
+			</div>
+
+			<div class="section-title">Works</div>
+			<div class="content-text">
+				心电图模拟器 - 在线项目演示，点击下方图片即可访问。
+			</div>
+			<a href="https://skyposer.github.io/WebGames/PoserECG/" target="_blank">
+				<img src="work_ecg.jpg" class="work-img" alt="心电图模拟器">
+			</a>
+			<div class="content-text">
+基于HTML+JavaScript
+<br>主要支持者: H128 Tsee
+<br>开发技术支持: WYL.龙尊
+<br>思路提供: 送
+<br>感谢交流群内所有测试玩家!
+<br>目前版本 V2.1.2 RC
+			</div>
+
+			<div class="section-title">Life</div>
+			<div class="content-text">Github 开源<br>点击下方图标跳转Github</div>
+			<a href="https://github.com/skyposer/WebGames" target="_blank">
+		    	<img src="img3.jpg" class="show-img">
+			</a>
+			<div class="content-text">
+没什么哈
+<br>感谢好友支持
+<br>Github: skyposer
+			</div>
+
+			<div class="footer">
+				纵有狂风平地起 · 我亦乘风破万里
+				<br>From Poser
+			</div>
+		</div>
+	</div>
+</body>
+</html>
