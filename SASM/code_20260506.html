@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SASM - 原生汇编编程语言</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%}
+body{font-family:"SimSun","STSong","Georgia",serif;background:#000c1c;color:#e8f0f8}
+.english{font-family:"Georgia","serif";font-style:italic}
+
+.wrap{
+	width:100vw;
+	min-height:100vh;
+	background:rgba(0,12,28,0.6);
+	backdrop-filter:blur(14px);
+	position:relative;
+	padding:60px 20px;
+}
+
+.top-gradient{
+	position:absolute;
+	top:0;left:0;right:0;
+	height:240px;
+	background:linear-gradient(90deg,#0c1a33,#1a3a66);
+	-webkit-mask:linear-gradient(to bottom,#000 50%,transparent 100%);
+	mask:linear-gradient(to bottom,#000 50%,transparent 100%);
+}
+
+.container{
+	max-width:880px;
+	margin:0 auto;
+	position:relative;z-index:2
+}
+
+.header{
+	text-align:center;
+	margin-bottom:60px
+}
+
+.logo{
+	width:180px;height:180px;
+	border-radius:24px;
+	border:4px solid rgba(90,170,255,0.5);
+	box-shadow:0 0 30px rgba(66,153,255,0.4);
+	margin:0 auto 24px;
+	object-fit:cover
+}
+
+.title{
+	font-size:38px;
+	color:#f0f4f8;
+	letter-spacing:2px
+}
+
+.subtitle{
+	font-size:20px;
+	color:#b8c8e0;
+	margin-top:8px
+}
+
+.img-box{
+	width:100%;
+	border-radius:20px;
+	overflow:hidden;
+	border:2px solid rgba(255,255,255,0.15);
+	margin:40px 0;
+	box-shadow:0 8px 24px rgba(0,0,0,0.35)
+}
+
+.img-box img{
+	width:100%;display:block
+}
+
+.card{
+	background:rgba(255,255,255,0.04);
+	border-radius:20px;
+	padding:28px;
+	margin-bottom:30px;
+	border:1px solid rgba(255,255,255,0.08)
+}
+
+.card h2{
+	font-size:22px;
+	margin-bottom:18px;
+	padding-left:12px;
+	border-left:4px solid #54a8ff;
+	color:#fff
+}
+
+.card p{
+	font-size:17px;
+	line-height:1.9;
+	margin-bottom:10px
+}
+
+.code{
+	background:rgba(0,8,20,0.6);
+	border-radius:16px;
+	padding:26px;
+	font-size:15px;
+	line-height:1.8;
+	color:#c0ddff;
+	border:1px solid rgba(80,160,255,0.15)
+}
+
+.github-btn{
+	display:inline-block;
+	background:rgba(66,153,255,0.15);
+	border:2px solid #54a8ff;
+	color:#fff;
+	padding:14px 30px;
+	border-radius:14px;
+	font-size:17px;
+	text-decoration:none;
+	margin-top:12px;
+	transition:0.3s;
+}
+
+.github-btn:hover{
+	background:rgba(66,153,255,0.3);
+}
+
+.footer{
+	text-align:center;
+	margin-top:80px;
+	font-size:14px;
+	color:#8a9cb3;
+	line-height:1.8
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<div class="top-gradient"></div>
+<div class="container">
+
+<div class="header">
+<img src="logo.png" class="logo" alt="SASM Logo">
+<div class="title english">SASM</div>
+<div class="subtitle english">Simple Assembly for Human</div>
+</div>
+
+<!-- 插图区域 -->
+<div class="img-box">
+<img src="sasm_show.png" alt="SASM 语言展示">
+</div>
+
+<div class="card">
+<h2>语言定位</h2>
+<p>基于X86_64汇编开发的语言</p>
+<p>支持直接编译为X86_64原生汇编</p>
+<p>无虚拟机、无运行时、无性能损耗</p>
+<p>速度理论接近 C++，使用比x86更简单</p>
+</div>
+
+<div class="card">
+<h2>设计理念</h2>
+<p>面向人类的汇编语言</p>
+<p>指令极简，语法统一，无晦涩系统调用</p>
+<p>安全可控，新手友好，可扩展</p>
+</div>
+
+<div class="card">
+<h2>Hello World 示例</h2>
+<div class="code english">
+%distribution 8 64<br>
+%using.sasm<br>
+%using.to.asm<br><br>
+%data.memory *<br>
+msg db 'Hello SASM!',0<br><br>
+.start *<br>
+.output msg
+</div>
+</div>
+
+<!--
+<div class="img-box">
+<img src="sasm.png" alt="SASM 编译器展示">
+</div>
+-->
+
+<div class="card">
+<h2>编译器功能</h2>
+<p>读取 .Sa 源码 → 输出 .s 汇编文件</p>
+<p>实时错误检测，未知指令提示</p>
+<p>保留原文件，同目录安全生成</p>
+<p>支持寄存器、内存、字符串输出</p>
+</div>
+
+<div class="card">
+<h2>其他</h2>
+<p>在x86基础上进行包装</p>
+<p>简化了内存/寻址/系统调用等功能</p>
+<p>编译器支持Sams ams混用</p>
+<p>使用r10-r15寄存器独立与其他</p>
+</div>
+
+<div class="card">
+<h2>项目开源</h2>
+<p>前往 Github 查看更多项目</p>
+<p>编译器初代还没弄好</p>
+<p>补充: 我这个水平只能堆shit让AI优化了</p>
+<a href="https://github.com/skyposer/WebGames" target="_blank" class="github-btn english">CODE</a>
+</div>
+
+<div class="footer">
+<span class="english">SASM © Poser 破晓</span><br>
+纵有狂风平地起 · 我亦乘风破万里<br>
+Github: skyposer
+</div>
+
+</div>
+</div>
+</body>
+</html>
