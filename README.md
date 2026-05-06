@@ -1,6 +1,10 @@
 # WebGames
 Collection of games independently developed and ported by me.CSS is too ugly, don't blame me.
 
+# 心电图模拟器
+目前还是半成品
+所以很多地方还没做好
+
 **Hello!**
 
 我审美能力太差了好吧
