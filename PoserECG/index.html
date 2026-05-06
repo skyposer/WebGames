@@ -312,6 +312,7 @@
    <button class="log-btn" onclick="openLogPage()">i.日志</button>
    <button id="audioBtn" class="audio-toggle" onclick="toggleAudio()">音效: 关</button>
    <button id="SettingBtn" class="audio-toggle" onclick="openset()">设置⚙️</button>
+   <button id="stopECG" class="audio-toggle">暂停</button>
    <!--<button class="log-btn"></button>-->
 	   
   </div>
@@ -450,6 +451,8 @@
   </div>
   <div class="result-box" id="resultBox"></div>
   <script>
+let isPaused = false;
+let animationId = null;
 		const lead1 = document.getElementById('lead1');
 		const lead2 = document.getElementById('lead2');
 		const lead3 = document.getElementById('lead3');
@@ -477,6 +480,8 @@
 		let isAudioEnabled = false;
 		let lastValue = 0;
 		let peakThreshold = 8;
+
+
 
 		function getECGNoise(t) {
 			const baseDrift = Math.sin(t * 0.00004) * 0.35;
@@ -1786,9 +1791,14 @@
 		}
 
 		let canvases = [];
+function drawECG(timestamp) {
+    if (isPaused) { // 新增 —— 暂停就不再画了
+        requestAnimationFrame(drawECG);
+        return;
+    }
 
-		function drawECG(timestamp) {
-			requestAnimationFrame(drawECG);
+    requestAnimationFrame(drawECG);
+
 
 			if (!lastFrameTime) lastFrameTime = timestamp;
 			const deltaTime = timestamp - lastFrameTime;
@@ -1865,8 +1875,16 @@ window.onload = function() {
 
 		lastFrameTime = performance.now();
 		requestAnimationFrame(drawECG);
-	}, 100); // 延迟100ms确保布局完成
+	}, 100); // 延迟100
 };
+document.getElementById('stopECG').addEventListener('click', function() {
+    isPaused = !isPaused;
+    this.textContent = isPaused ? '继续' : '暂停';
+    if (!isPaused) {
+        lastFrameTime = performance.now();
+    }
+});
+
 	</script>
  </body>
 </html>
