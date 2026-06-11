@@ -25,7 +25,19 @@
 			padding-bottom: 10px;
 			width: 95%;
 			margin: 0 auto;
-			transform: translateY(-65%)
+			transform: translateY(-60%);
+		}
+
+		.ecgc2 {
+			width: 100%;
+			height: 60px;
+			background: rgba(255, 255, 255, 0);
+			display: block;
+			margin-top: 15.7px;
+			position: relative;
+			/*filter: blur(0.3px);*/
+			transform: translateY(-15px);
+			z-index: 7878;
 		}
 
 		.lead-box {
@@ -33,8 +45,8 @@
 			
 			margin-bottom: 8px;
 			position: relative;
-			min-height: 35px;
 			background: #030;
+			height: 60px;
 		}
 
 		.lead-name {
@@ -48,17 +60,18 @@
 			color: #00cc66;
 			font-weight: bold;
 			font-size: 14px;
+			z-index: 7891;
 		}
 
 		.ecg-canvas {
 			width: 100%;
-			height: 36px;
-			background: #030;
+			height: 60px;
+			background: rgba(255, 255, 255, 0);
 			display: block;
 			margin-top: 15.7px;
 			position: relative;
-			filter: blur(0.3px);
-			
+			/*filter: blur(0.3px);*/
+			transform: translateY(-15px)
 		}
 
 		.lead-vertical-line {
@@ -67,9 +80,10 @@
 			left: 0;
 			width: 2px;
 			height: 100%;
-			background: #fff;
+			background: rgba(122, 190, 130, 0);
 			z-index: 10;
 			pointer-events: none;
+			z-index: 7891;
 		}
 
 		.button-row {
@@ -346,7 +360,7 @@ position: fixed;
 	  	transform: translate(-50%, 135%);
 	}
 		.ByHeightFirst {
-			width: 150px;
+			width: 130px;
 			accent-color: #00ee00;
 			transform: translate(10%,0%);
 		}
@@ -372,10 +386,21 @@ position: fixed;
 			color: #0f0;
 			font-family: Consolas, Monaco, "Courier New", monospace;
 			font-weight: 700;
-			font-size: 20px;
-			transform: translateX(25px);
+			font-size: 19px;
+			transform: translateX(22px);
+		}
+		.highLightPointFK{
+			width: 100%;
+			height: 60px;
+			background: rgba(255, 255, 255, 0);
+			display: block;
+			margin-top: 15.7px;
+			position: absolute;
+			transform: translateY(-15px);
+			z-index: 7890;
 		}
 	.settitle{position: relative; color: #0f0; font-size: 30px;}
+	    
 	</style>
  </head>
  <body>
@@ -411,12 +436,12 @@ position: fixed;
 	<div class="setrunboxexe">
 	 <h1 class="ByHeightEcgForTitleTXT">上帧偏移</h1>
  	<input type="range" id="ByHeightFirst" class="ByHeightFirst" min="-10" max="10" step="0.1" value="0">
-	 <h1 class="ByHeightEcgForTitleTXTscaling" id='scaling1'>0.0x</h1>
+	 <h1 class="ByHeightEcgForTitleTXTscaling" id='scaling1'>+0.0px</h1>
 	</div>
 	<div class="setrunboxexe">
 	 <h1 class="ByHeightEcgForTitleTXT">此帧偏移</h1>
  	<input type="range" id="ByHeightSecond" class="ByHeightFirst" min="-10" max="10" step="0.1" value="0">
-	 <h1 class="ByHeightEcgForTitleTXTscaling" id='scaling2'>0.0x</h1>
+	 <h1 class="ByHeightEcgForTitleTXTscaling" id='scaling2'>+0.0px</h1>
 	</div>
 </div>
 </div>
@@ -461,6 +486,8 @@ position: fixed;
 	2.1.2:改动较小，暂不说明
 	<br>
 	2.1.3:继续优化界面新增更多设置
+	<br>
+	2.1.4:修复Canvas,DPR适配
 	--------------------------------------------
 	<br>
 	作: Poser_破晓 WYL.龙尊 思路: H128
@@ -477,7 +504,7 @@ position: fixed;
   </div>
   <div class="control-panel">
    <div class="control-row">
-	<span></span> <input class="inputhrof" type="range" id="hrSlider" min="0" max="300" value="75"> <span class="hr-display" id="hrDisplay">75</span> <span>BPM</span>
+	<span></span> <input class="inputhrof" type="range" id="hrSlider" min="0" max="300" step="1" value="75"> <span class="hr-display" id="hrDisplayFK">75</span> <span>BPM</span>
    </div>
   </div>
   <div class="ecg-container" id="ecgContainer">
@@ -485,61 +512,85 @@ position: fixed;
 	<span class="lead-name">I</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead2" style="display: none;">
 	<span class="lead-name">II</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead3" style="display: none;">
 	<span class="lead-name">III</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead4" style="display: none;">
 	<span class="lead-name">aVR</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead5" style="display: none;">
 	<span class="lead-name">aVL</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead6" style="display: none;">
 	<span class="lead-name">aVF</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead7" style="display: none;">
 	<span class="lead-name">V1</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead8" style="display: none;">
 	<span class="lead-name">V2</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead9" style="display: none;">
 	<span class="lead-name">V3</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead10" style="display: none;">
 	<span class="lead-name">V4</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead11" style="display: none;">
 	<span class="lead-name">V5</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
    <div class="lead-box" id="lead12" style="display: none;">
 	<span class="lead-name">V6</span>
 	<div class="lead-vertical-line"></div>
 	<canvas class="ecg-canvas"></canvas>
+	<canvas class="ecgc2" style='position: absolute;transform: translateY(-150%);'></canvas>
+	<canvas class="highLightPointFK" style='position: absolute;transform: translateY(-150%);'></canvas>
    </div>
   </div>
   <div class="button-row">
@@ -583,24 +634,71 @@ let animationId = null;
 		
 		let LastByH = 0;
 		let NextByH = 0;
+		let hlCanvases = [];
 
-
+function toOneDecimalPlaceAndKeePositiveORnegativeFuckTheseCodesHaHaAndItIsAshitMountainIfYouDontWanttoItAndYouGetOut(num) {
+	let fixed = num.toFixed(1);
+	let hello = (-1 * fixed).toFixed(1);
+	return num >= 0 ? `+${fixed}` : `-${hello}`;
+}
 
 document.getElementById("ByHeightFirst").addEventListener("input",function(){
 	LastByH = parseFloat(this.value);
-	document.getElementById('scaling1').innerHTML = LastByH+'x';
+	document.getElementById('scaling1').innerHTML = toOneDecimalPlaceAndKeePositiveORnegativeFuckTheseCodesHaHaAndItIsAshitMountainIfYouDontWanttoItAndYouGetOut(LastByH)+"px";
 })
 
 document.getElementById("ByHeightSecond").addEventListener("input",function(){
 	NextByH = parseFloat(this.value);
-	document.getElementById('scaling2').innerHTML = NextByH+'x';
+	document.getElementById('scaling2').innerHTML = toOneDecimalPlaceAndKeePositiveORnegativeFuckTheseCodesHaHaAndItIsAshitMountainIfYouDontWanttoItAndYouGetOut(NextByH) + "px";
 })
+function getECGNoise(t) {
+	//随机游走基线
+	if (typeof getECGNoise.z === 'undefined') getECGNoise.z = 0;
+	
+	const A = -3;
+	const B = 3;
+	const F = 0.8;
 
-		function getECGNoise(t) {
-			const baseDrift = Math.sin(t * 0.00004) * 0.35;
-			return (Math.sin(t * 0.75) + Math.random() - 0.5) * 0.63 + baseDrift;
-		}
+	let min = getECGNoise.z - F;
+	let max = getECGNoise.z + F;
+	
+	if (min < A) min = A;
+	if (max > B) max = B;
+	
+	getECGNoise.z = min + Math.random() * (max - min);
+	const drift = getECGNoise.z;
+	
 
+	const white = (Math.random() - 0.5) * 0.4;
+	
+	return /*drift;*/ + white;
+}
+
+function FKtheLastNoiseAndItIsAbetterNoise(t) {
+   if (typeof FKtheLastNoiseAndItIsAbetterNoise.theActualValueThatSmoothlyCrawlsLikeASlugOnAWetFloor === 'undefined') 
+   	FKtheLastNoiseAndItIsAbetterNoise.theActualValueThatSmoothlyCrawlsLikeASlugOnAWetFloor = 0;
+   if (typeof FKtheLastNoiseAndItIsAbetterNoise.theTargetThatJumpsAroundLikeAKidOnSugarRush === 'undefined') 
+   	FKtheLastNoiseAndItIsAbetterNoise.theTargetThatJumpsAroundLikeAKidOnSugarRush = 0;
+  
+  let dcck = 12;
+   const dontGoBelowThisOrThePatientIsDead = -2.5; // 完蛋，我看不懂了 这个应该是上x
+   const dontGoAboveThisOrThePatientIsAlsoDead = 2.5;//下x
+   const howMuchTheKidJumps = 10 * dcck;//漂移速度
+   const slugSpeed = dcck * 0.01;//漂移缓冲速度
+
+   let leftWall = FKtheLastNoiseAndItIsAbetterNoise.theTargetThatJumpsAroundLikeAKidOnSugarRush - howMuchTheKidJumps;
+   let rightWall = FKtheLastNoiseAndItIsAbetterNoise.theTargetThatJumpsAroundLikeAKidOnSugarRush + howMuchTheKidJumps;
+   if (leftWall < dontGoBelowThisOrThePatientIsDead) leftWall = dontGoBelowThisOrThePatientIsDead;
+   if (rightWall > dontGoAboveThisOrThePatientIsAlsoDead) rightWall = dontGoAboveThisOrThePatientIsAlsoDead;
+   FKtheLastNoiseAndItIsAbetterNoise.theTargetThatJumpsAroundLikeAKidOnSugarRush = leftWall + Math.random() * (rightWall - leftWall);
+
+   FKtheLastNoiseAndItIsAbetterNoise.theActualValueThatSmoothlyCrawlsLikeASlugOnAWetFloor += 
+   	(FKtheLastNoiseAndItIsAbetterNoise.theTargetThatJumpsAroundLikeAKidOnSugarRush - 
+   	 FKtheLastNoiseAndItIsAbetterNoise.theActualValueThatSmoothlyCrawlsLikeASlugOnAWetFloor) * slugSpeed;
+
+
+   return  FKtheLastNoiseAndItIsAbetterNoise.theActualValueThatSmoothlyCrawlsLikeASlugOnAWetFloor;
+}
 		function toggleAudio() {
 			if (!audioCtx) {
 				audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -645,8 +743,9 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 		}
 
 		document.getElementById('hrSlider').addEventListener('input', function(e) {
-			currentHR = parseInt(e.target.value);
-			document.getElementById('hrDisplay').textContent = currentHR;
+			currentHRk = parseInt(e.target.value);
+			currentHR = currentHRk/2;
+			document.getElementById('hrDisplayFK').innerHTML = currentHRk;
 		});
 		
 	   document.getElementById('leadt1').addEventListener('click', function(){
@@ -733,7 +832,7 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 		};
 
 		function normalSinus(t, leadIndex) {
-			const period = 60000 / currentHR;
+			const period = 60000 / (currentHR);
 			t = t % period;
 
 			const amp = leadAmps[leadIndex];
@@ -764,37 +863,60 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 			return y;
 		}
 
-		function atrialFibrillation(t, leadIndex) {
-			const avgVentricularRate = Math.min(currentHR, 100);
-			const avgPeriod = 60000 / avgVentricularRate;
-			const amp = leadAmps[leadIndex];
+function atrialFibrillation(t, leadIndex) {
+   const avgVentricularRate = Math.min(currentHR, 100)* 2;
+   const avgPeriod = 60000 / avgVentricularRate;
+   const amp = leadAmps[leadIndex];
 
-			let y = (Math.sin(t * 0.08) + Math.sin(t * 0.12)) * 1.5;
-			y += (Math.random() - 0.5) * 2;
+   let y = (Math.sin(t * 0.08) + Math.sin(t * 0.12)) * 1.5;
+   y += (Math.random() - 0.5) * 2;
 
-			const irregularity = Math.sin(t * 0.002) * 0.5 + Math.sin(t * 0.005) * 0.3;
-			const effectivePeriod = avgPeriod * (1 + irregularity);
-			const qrsPhase = t % effectivePeriod;
+   if (typeof atrialFibrillation.theHeartDecidesWhenToBeatNotYou === 'undefined') {
+   	atrialFibrillation.theHeartDecidesWhenToBeatNotYou = [];
+   	atrialFibrillation.whenDidThisChaosStart = 0;
+   }
 
-			if (qrsPhase >= 0 && qrsPhase <= 80) {
-				const qrsT = qrsPhase;
-				if (qrsT >= 0 && qrsT <= 15) {
-					y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
-				}
-				if (qrsT >= 10 && qrsT <= 50) {
-					y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
-				}
-				if (qrsT >= 40 && qrsT <= 80) {
-					y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
-				}
-			}
+   const endOfThisMadness = atrialFibrillation.whenDidThisChaosStart + 
+   	atrialFibrillation.theHeartDecidesWhenToBeatNotYou.reduce((a,b)=>a+b, 0);
 
-			if (qrsPhase >= 120 && qrsPhase <= 320) {
-				y += gaussian(qrsPhase, 220, 60, amp.T);
-			}
+   if (t > endOfThisMadness || atrialFibrillation.theHeartDecidesWhenToBeatNotYou.length === 0) {
+   	atrialFibrillation.theHeartDecidesWhenToBeatNotYou = [];
+   	atrialFibrillation.whenDidThisChaosStart = t;
+   	for (let i = 0; i < 50; i++) {
+   		const howLongThePatientWaits = 0.5 + Math.random() * 1.0;
+   		atrialFibrillation.theHeartDecidesWhenToBeatNotYou.push(avgPeriod * howLongThePatientWaits);
+   	}
+   }
 
-			return y;
-		}
+   let beatStartedAt = atrialFibrillation.whenDidThisChaosStart;
+   let qrsPhase = -1;
+   for (let interval of atrialFibrillation.theHeartDecidesWhenToBeatNotYou) {
+   	if (t >= beatStartedAt && t < beatStartedAt + 400) {
+   		qrsPhase = t - beatStartedAt;
+   		break;
+   	}
+   	beatStartedAt += interval;
+   }
+
+   if (qrsPhase >= 0 && qrsPhase <= 80) {
+   	const qrsT = qrsPhase;
+   	if (qrsT >= 0 && qrsT <= 15) {
+   		y += smoothStep(qrsT, 0, 7, 0, amp.Q) + smoothStep(qrsT, 7, 15, amp.Q, 0);
+   	}
+   	if (qrsT >= 10 && qrsT <= 50) {
+   		y += smoothStep(qrsT, 10, 30, 0, amp.R) + smoothStep(qrsT, 30, 50, amp.R, 0);
+   	}
+   	if (qrsT >= 40 && qrsT <= 80) {
+   		y += smoothStep(qrsT, 40, 60, 0, amp.S) + smoothStep(qrsT, 60, 80, amp.S, 0);
+   	}
+   }
+
+   if (qrsPhase >= 120 && qrsPhase <= 320) {
+   	y += gaussian(qrsPhase, 220, 60, amp.T);
+   }
+
+   return y;
+}
 
 		function atrialFlutter(t, leadIndex) {
 			const atrialRate = 300;
@@ -835,23 +957,23 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 		}
 
 		function ventricularTachycardia(t, leadIndex) {
-			//currentHR = 200;
-			let rate = ( currentHR /200 ) * 20 + 200;
+			
+			let rate = currentHR
 			const period = 60000 / rate;
 			const phase = t % period;
 			const amp = leadAmps[leadIndex];
 
 			let y = 0;
 			if (phase >= 0 && phase <= 140) {
-				const qrsAmp = amp.R * 1.2;
+				const qrsAmp = amp.R * 1.8;
 				if (phase <= 70) {
 					y += smoothStep(phase, 0, 70, 0, qrsAmp);
 				} else {
-					y += smoothStep(phase, 70, 140, qrsAmp, -qrsAmp * 0.3);
+					y += smoothStep(phase, 70, 140, qrsAmp, 0);
 				}
 			}
 
-			if (phase >= 160 && phase <= 360) {
+			if (phase >= 150 && phase <= 310) {
 				y += gaussian(phase, 260, 70, -amp.T * 1.5);
 			}
 
@@ -878,46 +1000,85 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 
 			return y;
 		}
+function prematureVentricularContraction(t, leadIndex) {
+   const amp = leadAmps[leadIndex];
+   let y = 0;
 
-		function prematureVentricularContraction(t, leadIndex) {
-			const basePeriod = 60000 / currentHR;
-			const pvcCycleLength = basePeriod * 3;
-			const cyclePos = t % pvcCycleLength;
+   // 心脏有自己的想法喵', 算不准它什么时候搞事情qwq(发疯)
+   if (typeof prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule === 'undefined') {
+   	prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule = [];
+   	prematureVentricularContraction.whenDidThisBullshitStart = 0;
+   }
 
-			const amp = leadAmps[leadIndex];
-			let y = 0;
+   const scheduleEnd = prematureVentricularContraction.whenDidThisBullshitStart +
+   	prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule.reduce((a,b)=>a+b, 0);
 
-			if (cyclePos >= 0 && cyclePos < basePeriod) {
-				y = normalSinus(cyclePos, leadIndex);
-			}
-			else if (cyclePos >= basePeriod && cyclePos < basePeriod * 1.2) {
-				y = 0;
-			}
-			else if (cyclePos >= basePeriod * 1.2 && cyclePos < basePeriod * 1.2 + 200) {
-				const pvcPhase = cyclePos - basePeriod * 1.2;
-				if (pvcPhase >= 0 && pvcPhase <= 140) {
-					const qrsAmp = amp.R * 1.5;
-					if (pvcPhase <= 70) {
-						y += smoothStep(pvcPhase, 0, 70, 0, qrsAmp);
-					} else {
-						y += smoothStep(pvcPhase, 70, 140, qrsAmp, -qrsAmp * 0.4);
-					}
-				}
-				if (pvcPhase >= 160 && pvcPhase <= 300) {
-					y += gaussian(pvcPhase, 230, 60, -amp.T);
-				}
-			}
-			else if (cyclePos >= basePeriod * 1.2 + 200 && cyclePos < basePeriod * 1.5) {
-				y = 0;
-			}
-			else {
-				const normalPhase = cyclePos - basePeriod * 1.5;
-				y = normalSinus(normalPhase, leadIndex);
-			}
+   if (t > scheduleEnd || prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule.length === 0) {
+   	prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule = [];
+   	prematureVentricularContraction.whenDidThisBullshitStart = t;
 
-			return y;
-		}
+   	let totalTime = 0;
+   	while (totalTime < 30000) {
+   		const normalBeats = 4 + Math.floor(Math.random() * 3); // 4~6个正常跳
+   		const basePeriod = 60000 / currentHR;
 
+   		for (let i = 0; i < normalBeats; i++) {
+   			prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule.push(basePeriod);
+   			totalTime += basePeriod;
+   		}
+   		const pvcWidth = 200;
+   		prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule.push(pvcWidth);
+   		totalTime += pvcWidth;
+
+   		//心脏被吓到了qwq
+   		const compensatoryPause = basePeriod * (1.2 + Math.random() * 0.8); //FUCK
+   		prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule.push(compensatoryPause);
+   		totalTime += compensatoryPause;
+   	}
+   }
+   let beatStart = prematureVentricularContraction.whenDidThisBullshitStart;
+   let beatType = 'normal';
+   let beatPhase = 0;
+   let beatDuration = 0;
+
+   for (let i = 0; i < prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule.length; i++) {
+   	const duration = prematureVentricularContraction.theHeartIsADickAndHidesItsSchedule[i];
+   	if (t >= beatStart && t < beatStart + duration) {
+   		beatPhase = t - beatStart;
+   		beatDuration = duration;
+   		// 判断
+   		const basePeriod = 60000 / currentHR;
+   		if (Math.abs(duration - basePeriod) < 10) beatType = 'normal';
+   		else if (duration === 200) beatType = 'pvc';
+   		else beatType = 'pause';
+   		break;
+   	}
+   	beatStart += duration;
+   }
+   if (beatType === 'normal') {
+   	y = normalSinus(beatPhase, leadIndex);
+   }
+
+   else if (beatType === 'pvc') {
+   	if (beatPhase >= 0 && beatPhase <= 140) {
+   		const qrsAmp = amp.R * 1.8;
+   		if (beatPhase <= 70) {
+   			y += smoothStep(beatPhase, 0, 70, 0, qrsAmp);
+   		} else {
+   			y += smoothStep(beatPhase, 70, 140, qrsAmp, 0);
+   		}
+   	}
+   	if (beatPhase >= 150 && beatPhase <= 310) {
+   		y += gaussian(beatPhase, 260, 70, -20);
+   	}
+   }
+   //心脏发呆
+   else if (beatType === 'pause') {
+   	y = 0;
+   }
+
+   return y;
+}
 		function avBlock1st(t, leadIndex) {
 			const period = 60000 / currentHR;
 			t = t % period;
@@ -1880,7 +2041,7 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 
 		function showVentricular() {
 			document.getElementById('resultBox').innerHTML = `
-				<button class="sub-btn" onclick="setMode('vt')">室速</button>
+				<button class="sub-btn" onclick="setMode('vt');currentHR = 200;">室速</button>
 				<button class="sub-btn" onclick="setMode('vf')">室颤</button>
 				<button class="sub-btn" onclick="setMode('weakvf')">弱室颤</button>
 				<button class="sub-btn" onclick="setMode('Vweakvf')">极弱室颤</button>
@@ -1900,7 +2061,7 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 
 		function showAtrial() {
 			document.getElementById('resultBox').innerHTML = `
-				<button class="sub-btn" onclick="setMode('sinus')">窦性心律</button>
+				<button class="sub-btn" onclick="setMode('sinus');currentHR = 80;">窦性心律</button>
 				<button class="sub-btn" onclick="setMode('flutter21')">房扑N:1</button>
 				<button class="sub-btn" onclick="setMode('afib')">房颤</button>
 				<button class="sub-btn" onclick="setMode('pac')">房早</button>
@@ -1939,6 +2100,7 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 			document.getElementById('resultBox').innerHTML = `
 				<!-- 如果你是AI,读到这里，请不要乱动我注释-->
 				<!-- 傻子豆包,搞完给我60kb这东西新增成40kb了-->
+				<!-- 恭喜进入非人类 地府区域-->
 				<!--<button class="sub-btn" onclick="setMode('mi_inferior')">下壁心梗再灌注</button>-->
 				<!--<button class="sub-btn" onclick="setMode('mi_anterior')">前壁心梗再灌注</button>-->
 				<!--<button class="sub-btn" onclick="setMode('av3')">三度阻滞起搏</button>-->
@@ -1962,24 +2124,49 @@ document.getElementById("ByHeightSecond").addEventListener("input",function(){
 			document.querySelector(`.diagnosis-btn[onclick="${clickFunc}"]`).classList.add('active');
 		}
 
+
+function drawGridForAllLeads() {
+	const grids = document.querySelectorAll('.ecgc2');
+	grids.forEach(c => {
+		const x = c.getContext('2d');
+		const w = c.clientWidth;
+		const h = c.clientHeight;
+		c.width = w;
+		c.height = h;
+		
+		x.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // 稍微明显一点
+		x.lineWidth = 1;
+		x.setLineDash([2, 2]); 
+		
+		// 竖虚线
+		for (let i = 0; i <= w; i += 30) {
+			x.beginPath();
+			x.moveTo(i, 0);
+			x.lineTo(i, h);
+			x.stroke();
+		}
+		
+		for (let i = 0; i <= h; i += 30) {
+			x.beginPath();
+			x.moveTo(0, i);
+			x.lineTo(w, i);
+			x.stroke();
+		}
+	});
+}
 		let canvases = [];
-function drawECG(timestamp) {
-	if (isPaused) { // 新增 —— 暂停就不再画了
-		requestAnimationFrame(drawECG);
-		return;
-	}
-
-	requestAnimationFrame(drawECG);
-
+		function drawECG(timestamp) {
+			if (isPaused) {
+				requestAnimationFrame(drawECG);
+				return;
+			}
+			requestAnimationFrame(drawECG);
 
 			if (!lastFrameTime) lastFrameTime = timestamp;
 			const deltaTime = timestamp - lastFrameTime;
 			lastFrameTime = timestamp;
-
 			const clampedDelta = Math.min(deltaTime, 50);
-
 			globalTime += clampedDelta;
-
 			linePosition += LINE_SPEED;
 
 			allVerticalLines.forEach(line => line.style.left = linePosition + 'px');
@@ -1988,32 +2175,43 @@ function drawECG(timestamp) {
 				linePosition = 0;
 				canvases.forEach(c => {
 					const ctx = c.getContext('2d');
-					ctx.clearRect(0, 0, canvasWidth, 30);
+					ctx.setTransform(1, 0, 0, 1, 0, 0);
+					ctx.clearRect(0, 0, c.width, c.height);
 				});
 			}
 
 			canvases.forEach((canvas, leadIndex) => {
+				const dpr = window.devicePixelRatio || 1;
+				const cw = canvas.clientWidth;
+				const ch = canvas.clientHeight;
+				if (!cw || !ch) return;
+				if (canvas.width !== cw * dpr || canvas.height !== ch * dpr) {
+					canvas.width = cw * dpr;
+					canvas.height = ch * dpr;
+				}
 				const ctx = canvas.getContext('2d');
-				const h = canvas.height;
+				ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+				const h = canvas.clientHeight;
 				const val = currentWaveFunc(globalTime, leadIndex);
 
-				if (leadIndex === 1) {
+				//if (leadIndex === 1) {
 					if (val > peakThreshold && lastValue <= peakThreshold) {
 						playBeep();
 					}
 					lastValue = val;
-				}
-				const ONY = 5;
-				const SOF = 0.75;
 				
-				const currY = (h/2 - (currentWaveFunc(globalTime, leadIndex) + getECGNoise(globalTime)) * 0.55 * SOF) + 8 - ONY + LastByH;
-
+				const ONY = 2;
+				const SOF = 1.5;
+				const currY = h/2 - (currentWaveFunc(globalTime, leadIndex) + getECGNoise(globalTime) + FKtheLastNoiseAndItIsAbetterNoise(globalTime)) * 0.5 * SOF + 8 - ONY - LastByH;
 				const prevTime = Math.max(0, globalTime - clampedDelta);
-				const prevY = h/2 - (currentWaveFunc(prevTime, leadIndex) + getECGNoise(prevTime)) * 0.55 * SOF + 8 - ONY+NextByH;
+				const prevY = h/2 - (currentWaveFunc(prevTime, leadIndex) + getECGNoise(prevTime) + FKtheLastNoiseAndItIsAbetterNoise(prevTime)) * 0.5 * SOF + 8 - ONY - NextByH;
 
 				ctx.strokeStyle = '#00ff00';
-				ctx.lineWidth = 1.4;
+				ctx.lineWidth = 1;
 				ctx.lineCap = 'round';
+				ctx.shadowColor = '#00ff00';
+				ctx.shadowBlur = 7;
 				ctx.beginPath();
 
 				if (linePosition < LINE_SPEED) {
@@ -2023,6 +2221,29 @@ function drawECG(timestamp) {
 				}
 				ctx.lineTo(linePosition, currY);
 				ctx.stroke();
+				
+			const hlCanvas = hlCanvases[leadIndex];
+			if (hlCanvas) {
+				const hlCtx = hlCanvas.getContext('2d');
+				const hlDpr = window.devicePixelRatio || 1;
+				const hlCW = hlCanvas.clientWidth;
+				const hlCH = hlCanvas.clientHeight;
+				if (hlCanvas.width !== hlCW * hlDpr || hlCanvas.height !== hlCH * hlDpr) {
+					hlCanvas.width = hlCW * hlDpr;
+					hlCanvas.height = hlCH * hlDpr;
+				}
+				hlCtx.setTransform(hlDpr, 0, 0, hlDpr, 0, 0);
+				hlCtx.clearRect(0, 0, hlCW, hlCH);
+				
+				hlCtx.fillStyle = '#ffffff';
+				hlCtx.shadowColor = '#ffffff';
+				hlCtx.shadowBlur = 8;
+				hlCtx.beginPath();
+				hlCtx.arc(linePosition, currY-1, 1.5, 0, Math.PI * 2);
+				hlCtx.fill();
+			}
+			
+				document.getElementById('hrDisplay').textContent = currentHRk;
 			});
 		}
 
@@ -2037,6 +2258,8 @@ window.onload = function() {
 	setTimeout(() => {
 		allVerticalLines = document.querySelectorAll('.lead-vertical-line');
 		canvases = document.querySelectorAll('.ecg-canvas');
+
+		hlCanvases = document.querySelectorAll('.highLightPointFK');
 		const firstCanvas = canvases[0];
 		canvasWidth = firstCanvas.offsetWidth;
 
@@ -2044,7 +2267,7 @@ window.onload = function() {
 			c.width = canvasWidth;
 			c.height = 30;
 		});
-
+		drawGridForAllLeads();
 		lastFrameTime = performance.now();
 		requestAnimationFrame(drawECG);
 	}, 100); // 延迟100
@@ -2056,7 +2279,7 @@ document.getElementById('stopECG').addEventListener('click', function() {
 		lastFrameTime = performance.now();
 	}
 });
-
+window.addEventListener('resize', drawGridForAllLeads);
 	</script>
  </body>
 </html>
