@@ -1,0 +1,2836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#05070a">
+<title>ICU 生理监护模拟器</title>
+<style>
+:root{
+  --bg:#05070a; --bg2:#0a0e14; --panel:#0d131b; --line:#1c2733;
+  --ink:#c8d6e2; --dim:#6b7d8e; --dimmer:#3d4a58;
+  --ecg:#39ff88; --spo2:#39d7f2; --abp:#ff5b5b; --resp:#ffd23f; --temp:#f2f5f7; --co2:#b98cff;
+  --ok:#39ff88; --warn:#ffd23f; --crit:#ff3b30;
+  --fs:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font:13px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Roboto,sans-serif;
+  overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+#app{display:flex;flex-direction:column;height:100dvh;height:100vh;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+.topbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.topbar .mb{width:34px;height:30px;border:1px solid var(--line);background:#111821;color:var(--ink);border-radius:6px;font-size:16px;flex:0 0 auto}
+.pt{flex:1;min-width:0}
+.pt b{display:block;font-size:12.5px;font-weight:600;color:#dce8f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt span{display:block;font-size:10.5px;color:var(--dim)}
+.tb{font-size:10.5px;color:var(--dim);text-align:right;font-variant-numeric:tabular-nums;line-height:1.3}
+.tb b{color:var(--ink);font-weight:600;font-size:11.5px}
+
+.alarmbar{flex:0 0 auto;margin:0;padding:5px 10px;font-size:11.5px;font-weight:700;letter-spacing:.4px;
+  display:flex;align-items:center;gap:8px;white-space:nowrap;overflow-x:auto}
+.alarmbar.hide{display:none}
+.a-hp{background:repeating-linear-gradient(45deg,#ff3b30,#ff3b30 12px,#c2140b 12px,#c2140b 24px);color:#fff;animation:pulse .55s infinite alternate}
+.a-mp{background:#ffd23f;color:#1a1400}
+.a-lp{background:#39d7f2;color:#00191f}
+.a-info{background:#1c2733;color:var(--ink)}
+@keyframes pulse{from{filter:brightness(.72)}to{filter:brightness(1.25)}}
+.alarmbar .tsc{margin-left:auto;opacity:.85;font-weight:500}
+
+.tiles{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.tile{background:var(--bg2);padding:4px 6px 5px;min-width:0;position:relative}
+.tile .k{font-size:9.5px;letter-spacing:.6px;color:var(--dim);display:flex;justify-content:space-between;align-items:center}
+.tile .v{font-size:26px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;
+  font-family:"DIN Alternate","SF Mono",Menlo,Consolas,monospace;letter-spacing:-.5px}
+.tile.small .v{font-size:20px;letter-spacing:-.6px}
+.tile .u{font-size:9.5px;color:var(--dim);margin-left:2px;font-weight:500}
+.tile .sub{font-size:9.5px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.lv0 .v{text-shadow:0 0 10px currentColor}
+.t-hr{color:var(--ecg)} .t-sp{color:var(--spo2)} .t-bp{color:var(--abp)} .t-rr{color:var(--resp)} .t-tp{color:var(--temp)} .t-co2{color:var(--co2)}
+.tile.alarmL{box-shadow:inset 0 0 0 2px var(--warn);animation:pulse .8s infinite alternate}
+.tile.alarmH{box-shadow:inset 0 0 0 2px var(--crit);animation:pulse .45s infinite alternate}
+.tile.off{opacity:.4}
+.spark{position:absolute;right:4px;bottom:3px;width:52px;height:16px;opacity:.85;pointer-events:none}
+
+.wavewrap{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 19px,rgba(60,90,80,.13) 19px 20px),
+    repeating-linear-gradient(0deg,transparent 0 19px,rgba(60,90,80,.13) 19px 20px),
+    repeating-linear-gradient(90deg,transparent 0 99px,rgba(80,140,120,.3) 99px 100px),
+    repeating-linear-gradient(0deg,transparent 0 99px,rgba(80,140,120,.22) 99px 100px),
+    var(--bg);
+  grid-row:0;grid-column:0}
+.row{position:relative;height:var(--rh,74px);border-bottom:1px solid rgba(40,60,72,.5);background:rgba(5,7,10,.55)}
+.row canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.row .lb{position:absolute;left:4px;top:2px;font-size:10.5px;font-weight:700;letter-spacing:.4px;z-index:2;text-shadow:0 0 6px #000,0 0 3px #000}
+.row .rt{position:absolute;right:4px;top:2px;font-size:10px;color:var(--dim);z-index:2;font-variant-numeric:tabular-nums;text-shadow:0 0 6px #000}
+.row .cal{position:absolute;left:4px;bottom:2px;height:10px;z-index:2;opacity:.85}
+.row .cal i{display:block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
+  border-bottom:0;border-style:solid;position:relative}
+.row.hide{display:none}
+
+.quickbar{flex:0 0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);
+  border-top:1px solid var(--line)}
+.quickbar button{background:var(--bg2);border:0;color:var(--ink);padding:9px 2px 8px;font-size:10.5px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;font-family:inherit}
+.quickbar button i{font-style:normal;font-size:17px;line-height:1}
+.quickbar button:active{background:#1a2530}
+.quickbar button.hot{color:var(--crit)}
+
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+#scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;left:0;bottom:0;width:78vw;max-width:300px;background:var(--panel);
+  border-right:1px solid var(--line);transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+  z-index:50;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#drawer.on{transform:translateX(0)}
+#drawer .dh{padding:14px 14px 10px;border-bottom:1px solid var(--line)}
+#drawer .dh b{font-size:15px;display:block}
+#drawer .dh span{font-size:10.5px;color:var(--dim)}
+#drawer nav{flex:1;overflow-y:auto;padding:6px 0}
+#drawer .it{display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid rgba(28,39,51,.6);font-size:13.5px;cursor:pointer}
+#drawer .it:active{background:#16202b}
+#drawer .it i{font-style:normal;font-size:17px;width:22px;text-align:center}
+#drawer .it .sub{margin-left:auto;font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+#drawer .it.on{background:#16202b;box-shadow:inset 3px 0 0 var(--ecg)}
+
+.sheet{position:fixed;left:0;right:0;bottom:0;top:6vh;background:var(--panel);border-top:1px solid var(--line);
+  border-radius:14px 14px 0 0;transform:translateY(101%);transition:transform .25s cubic-bezier(.4,0,.2,1);
+  z-index:60;display:flex;flex-direction:column}
+.sheet.on{transform:translateY(0)}
+.sheet .sh{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.sheet .sh::before{content:"";position:absolute;top:6px;left:50%;transform:translateX(-50%);width:38px;height:4px;
+  border-radius:2px;background:var(--dimmer)}
+.sheet .sh b{flex:1;font-size:15px}
+.sheet .sh button{background:#1a2530;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:6px 12px;font-size:12px}
+.sheet .sb{flex:1;overflow-y:auto;padding:10px 14px 28px;-webkit-overflow-scrolling:touch}
+
+.grp{margin-bottom:16px}
+.grp>h4{font-size:11px;letter-spacing:1px;color:var(--dim);margin:0 0 8px;font-weight:600;
+  border-bottom:1px solid var(--line);padding-bottom:5px}
+.rowi{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:12.5px;border-bottom:1px solid rgba(28,39,51,.45)}
+.rowi .lb{flex:0 0 auto;min-width:88px;color:var(--dim);font-size:11.5px}
+.rowi .val{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink);font-size:11.5px;min-width:52px;text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:26px;background:transparent;min-width:0}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--ecg);margin-top:-8.5px;box-shadow:0 0 8px rgba(57,255,136,.5)}
+input[type=range]::-moz-range-track{height:3px;background:var(--line);border-radius:2px}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border:0;border-radius:50%;background:var(--ecg)}
+select,input[type=number],input[type=text]{background:#111821;border:1px solid var(--line);color:var(--ink);
+  border-radius:6px;padding:7px 8px;font-size:12.5px;font-family:inherit;flex:1;min-width:0}
+.sw{width:44px;height:25px;border-radius:13px;background:#1a2530;border:1px solid var(--line);position:relative;flex:0 0 auto;cursor:pointer;transition:.15s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:var(--dim);transition:.15s}
+.sw.on{background:rgba(57,255,136,.22);border-color:var(--ecg)}
+.sw.on::after{left:21px;background:var(--ecg)}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:#111821;color:var(--dim);border-radius:16px;padding:6px 12px;font-size:11.5px;cursor:pointer}
+.chip.on{background:rgba(57,255,136,.16);border-color:var(--ecg);color:var(--ecg)}
+.chip.danger.on{background:rgba(255,59,48,.18);border-color:var(--crit);color:#ff8078}
+.btn{background:#16202b;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px;font-size:12.5px;cursor:pointer;text-align:center;font-family:inherit}
+.btn:active{background:#1e2a36}
+.btn.pri{background:rgba(57,255,136,.14);border-color:var(--ecg);color:var(--ecg)}
+.btn.danger{background:rgba(255,59,48,.16);border-color:var(--crit);color:#ff8078}
+.btn.big{font-size:16px;font-weight:700;padding:16px}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.dcard{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#111821}
+.dcard .t{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+.dcard .t b{font-size:13.5px;color:#e2ecf4}
+.dcard .t em{font-style:normal;font-size:9.5px;color:var(--dim);margin-left:auto;text-align:right}
+.dcard .d{font-size:11px;color:var(--dim);margin-bottom:8px;line-height:1.45}
+.dcard .acts{display:flex;gap:6px;flex-wrap:wrap}
+.dcard .acts button{flex:1;min-width:62px;background:#16202b;border:1px solid var(--line);color:var(--ink);
+  border-radius:6px;padding:8px 4px;font-size:11.5px;cursor:pointer;font-family:inherit}
+.dcard .acts button:active{background:var(--ecg);color:#000}
+.dcard .cls{font-size:9px;padding:2px 6px;border-radius:8px;border:1px solid var(--line);color:var(--dim)}
+.dcard .cls.v{color:#ff8078;border-color:#7a2b26}
+.dcard .cls.a{color:var(--spo2);border-color:#1c5a66}
+.dcard .cls.n{color:#8fb0c8}
+
+.defibwrap{text-align:center}
+.bigJ{font-size:56px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;
+  font-family:"DIN Alternate","SF Mono",Menlo,monospace;color:var(--abp);text-shadow:0 0 24px rgba(255,91,91,.45)}
+.bigJ span{font-size:18px;color:var(--dim)}
+.capbar{height:14px;border:1px solid var(--line);border-radius:7px;background:#0a1017;margin:14px 0;overflow:hidden;position:relative}
+.capbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1a5f2a,var(--ecg));transition:width .1s linear}
+.capbar.full i{background:linear-gradient(90deg,#5a1a1a,var(--crit))}
+.syl{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+
+.logbox{max-height:220px;overflow-y:auto;background:#080c11;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:10.5px;line-height:1.6;font-variant-numeric:tabular-nums}
+.logbox div{border-bottom:1px solid rgba(28,39,51,.5);padding:2px 0}
+.logbox time{color:var(--dim);margin-right:6px}
+
+.pg12{position:fixed;inset:0;background:#0b0d10;z-index:70;display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.pg12.on{display:flex}
+.pg12 .ph{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.pg12 .ph b{flex:1;font-size:14px}
+.pg12 .pb{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px}
+.pg12 canvas{width:100%;display:block;background:#0d0f12;border:1px solid #22262c;border-radius:4px}
+.meas{margin-top:10px;background:#11151a;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11.5px;line-height:1.75}
+.meas b{color:var(--ecg)}
+.meas .warn{color:var(--warn)}
+.meas .critx{color:var(--crit)}
+.meas div{display:flex;gap:8px}
+
+.toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:rgba(13,19,27,.97);
+  border:1px solid var(--line);border-radius:20px;padding:9px 18px;font-size:12px;z-index:99;opacity:0;
+  transition:opacity .2s,transform .2s;pointer-events:none;max-width:86vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
+.kbd{font-size:10px;background:#1a2530;border-radius:4px;padding:1px 5px;border:1px solid var(--line);margin-left:4px}
+hr.sep{border:0;border-top:1px solid var(--line);margin:14px 0}
+.note{font-size:10.5px;color:var(--dim);line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <button class="mb" id="menuBtn">☰</button>
+    <div class="pt"><b id="ptName">BED 01 · 张××</b><span id="ptMeta">男 68y 70kg</span></div>
+    <div class="tb"><b id="clock">--:--</b><br><span id="batt">⚡100%</span></div>
+  </header>
+  <div id="alarmBar" class="alarmbar hide"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="wavewrap" id="waveWrap"></div>
+  <nav class="quickbar">
+    <button data-act="defib"><i>⚡</i>除颤</button>
+    <button data-act="drug"><i>💊</i>给药</button>
+    <button data-act="nibp"><i>🩺</i>测压</button>
+    <button data-act="cpr"><i>👐</i>CPR</button>
+    <button data-act="lead12"><i>📈</i>12导联</button>
+  </nav>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer">
+  <div class="dh"><b>监护仪</b><span>左滑菜单 · v2.0 生理模型</span></div>
+  <nav id="drawerNav"></nav>
+</aside>
+
+<div class="sheet" id="sheet">
+  <div class="sh"><b id="sheetTitle">标题</b><button id="sheetClose">关闭</button></div>
+  <div class="sb" id="sheetBody"></div>
+</div>
+
+<div class="pg12" id="pg12">
+  <div class="ph"><b>12 导联心电图</b><button class="btn" onclick="document.getElementById('pg12').classList.remove('on')" style="padding:6px 12px">返回</button></div>
+  <div class="pb"><canvas id="c12"></canvas><div class="meas" id="meas12"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+/* ============================================================
+   ICU 生理监护模拟器
+   波形来源:三维心电向量环(VCG) → 12 导联正交投影
+   循环动力学 → 血压/血氧/氧输送/酸碱
+   ============================================================ */
+const DEG=Math.PI/180, TAU=Math.PI*2;
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const irnd=(a,b)=>Math.floor(rnd(a,b+1));
+const N=()=>Math.random()*2-1;
+const smooth=(x)=>{x=clamp(x,0,1);return x*x*(3-2*x)};
+const gauss=(x,s)=>Math.exp(-0.5*(x/s)*(x/s));
+
+/* ---------- 12 导联定义 ---------- */
+const LEADS=[
+ {n:'I',  f:0,   c:'#39ff88',grp:'limb'},
+ {n:'II', f:60,  c:'#39ff88',grp:'limb'},
+ {n:'III',f:120, c:'#39ff88',grp:'limb'},
+ {n:'aVR',f:-150,c:'#7ee081',grp:'aug'},
+ {n:'aVL',f:-30, c:'#7ee081',grp:'aug'},
+ {n:'aVF',f:90,  c:'#7ee081',grp:'aug'},
+ {n:'V1', v:150, c:'#5fd8ff',grp:'prec'},
+ {n:'V2', v:110, c:'#5fd8ff',grp:'prec'},
+ {n:'V3', v:90,  c:'#5fd8ff',grp:'prec'},
+ {n:'V4', v:60,  c:'#5fd8ff',grp:'prec'},
+ {n:'V5', v:30,  c:'#5fd8ff',grp:'prec'},
+ {n:'V6', v:0,   c:'#5fd8ff',grp:'prec'},
+];
+const LI={}; LEADS.forEach((l,i)=>LI[l.n]=i);
+// 12导联 3×4 排布 + 底部 II 导联长节律条
+const L12=[['I','aVR','V1','V4'],['II','aVL','V2','V5'],['III','aVF','V3','V6']];
+// 梗死 / 束支区域掩码
+const TERR={ant:[6,7,8,9],inf:[1,2,5],lat:[0,4,10,11]};
+
+/* ---------- 向量分量构造 ----------
+   A=额面幅值  B=水平面幅值  f=额面方位角  h=水平面方位角
+   额面导联 = A·cos(f−θ)   水平导联 = B·cos(h−φ)              */
+function comp(A,B,f,h){
+  const F=f*DEG,H=h*DEG;
+  return {vx:A*Math.cos(F), vy:A*Math.sin(F), zh:B*Math.cos(H), xh:B*Math.sin(H)};
+}
+function projLead(c,L){
+  return (L.f!==undefined)? (c.vx*Math.cos(L.f*DEG)+c.vy*Math.sin(L.f*DEG))
+                          : (c.zh*Math.cos(L.v*DEG)+c.xh*Math.sin(L.v*DEG));
+}
+
+/* ---------- 采样缓冲 ---------- */
+const FS=250, BUFSZ=16250, BSEC=BUFSZ/FS;   // 65 秒历史(导出最长 60 s,留余量)
+const ecgBuf=[]; for(let i=0;i<12;i++) ecgBuf.push(new Float32Array(BUFSZ));
+const bufPleth=new Float32Array(BUFSZ);
+const bufArt  =new Float32Array(BUFSZ);
+const bufResp =new Float32Array(BUFSZ);
+const bufCO2  =new Float32Array(BUFSZ);
+let gIdx=0;                                  // 全局样本游标
+const BEATS=[];                              // 最近的心搏描述符(波形按需重算)
+// 确定性伪随机:同一样本索引永远得到同一噪声 → 波形滚动时噪声不闪烁、不残留
+function hashNoise(i,seed){
+  let x=Math.imul(i|0,374761393)+Math.imul(seed|0,668265263);
+  x=Math.imul(x^(x>>>13),1274126177);
+  return (((x^(x>>>16))>>>0)/2147483648)-1;    // -1 ~ +1
+}
+const gmod=(i)=>((i%BUFSZ)+BUFSZ)%BUFSZ;
+function samp(buf,t){                        // 按秒取样(线性插值)
+  const f=t*FS, i0=Math.floor(f), fr=f-i0;
+  const a=buf[gmod(i0)], b=buf[gmod(i0+1)];
+  return a+(b-a)*fr;
+}
+function sampIdx(buf,i){ const j=gmod(i); return buf[j]; }
+
+/* ---------- 全局状态 ---------- */
+const S={
+  t:0, run:true, timeScale:1,
+  // 患者
+  age:68, sex:'M', weight:70, hb:135, fio2:0.21, temp:36.8,
+  // 基础生理
+  base:{ contract:1.0, svr:17.5, vol:100, hrBase:72, rr:14, temp:36.8 },
+  // 波形微调(强行调整)
+  wave:{ pAmp:1, pWidth:1, pInv:false, qrsAmp:1, qrsWidth:1, stShift:0,
+         tAmp:1, tInv:false, axis:0, noise:0.35, wander:0.4, rsa:1, qDepth:0.06 },
+  // 波形地形
+  land:{ ant:0, inf:0, lat:0, lbbb:0, rbbb:0, qwave:0, lvh:0, rv5:0 },
+  // 显示
+  view:{ leads:['I','II','III'], rows:100, scanSpeed:2, speed:25, gain:10, grid:true, cal:true,
+         rowsOrder:[], trend:true, bigNum:true, traceColor:'channel' },
+  alarm:{ hrHi:120, hrLo:50, spo2Lo:90, sbpHi:160, sbpLo:90, dbpHi:100, mapLo:65, rrLo:8, rrHi:25 },
+  cheat:{ god:false, infEnergy:false, alwaysROSC:false, forceShock:false,
+          lockHR:0, lockSpO2:0, lockMAP:0 },
+  // 实时
+  rhythm:'sinus', rhythmForce:null, rhythmTimer:0,
+  nextBeat:0, hr:72, pulse:72, rr:0.8, beatCount:0, lastRR:0.8, rrHist:[],
+  prInt:0.16, qtInt:0.36, qrsInt:0.09, pulsePresent:true,
+  // 血流动力学
+  contract:1, svr:16, vol:100, sv:70, co:5.0, map:90, sbp:120, dbp:75, pp:45, cvp:5,
+  spo2:98, pao2:95, paco2:40, sao2:98, svo2:75, do2x:5.2, vo2:250, lactate:0.8, ph:7.40, baseExc:0,
+  rrInt:14, apnea:false, inspPhase:0, temp:36.8,
+  // 设备
+  nibp:{st:'idle',cuff:0,t:0,amp:0,peak:0,peakCuff:0,hist:[],sbpx:0,dbpx:0,mapx:0,inflate:30,deflate:9},
+  art:{y:0,dy:0,peak:0,trough:0,level:0,lastBeatT:0},
+  defib:{e:150,st:'idle',ch:0,max:360,sync:false,charged:false,batt:100},
+  cpr:{active:false,rate:110,depth:5,lastT:0,ratio:30},
+  drugs:[], medLog:[], qrsHist:[], prevBeatT:0, rPeak:-1, pvcPause:0, tmplEnd:undefined, actualRR:undefined,
+  motion:0, artNoise:0, etco2:0, perfIdx:3, stun:1, stunT:0, tremor:0,
+  hrLock:0, spo2Lock:0, mapLock:0, mechVent:false, rrLock:0, sound:true, qrsSound:false,
+  paddle:false, hand:false, mapLocked:0, artLine:true,
+  mains:0, tremor:0, sigDirty:false, sigDirtyAt:0, motionAmt:0.30,
+  // 自然病程:持续性室性心律 → 循环崩溃 → 室颤 → 细颤 → 停搏
+  prog:{on:true, speed:1, t:0, vtEff:0.85, next:Infinity, selfTerm:0, compT:0, comp:1},
+  gcs:15, shockT:0, deathT:0, dead:false,
+  io:{urine:0,infuse:0,insens:0,balance:0,urineRate:0,rate:0,urineTotal:0,infTotal:0,insensTotal:0},
+  exp:{sec:10,mode:'strip',leads:['II'],cal:true,rowGap:1.5,
+    title:true,    // 顶部大标题(ICU 生理监护模拟器 · 心电图)
+    patient:true,  // 右上患者信息(性别·年龄·体重·Hb·时间)
+    measures:true, // 测量值(HR·QRS·QTc·pH·乳酸)
+    meta:true,     // 扫速/增益/定标/时间戳
+    grid:true,     // 心电图纸 1mm/5mm 网格
+    label:true,    // 每个波形前的小导联名
+  },
+  elec:{K:4.0,Mg:2.0,Ca:2.25},            // mmol/L
+  ecgDrug:{dig:0,amio:0,proc:0},           // 心电图药物效应强度 0~1
+  isch:{on:0,sev:0},                      // 缺血:静息/应激
+  hrv:{sdnn:0,rmssd:0,rr:0},
+  abg:null, rass:0, waterLoss:1,
+  lesion:{pe:0, tamp:0, tension:0},        // 急性肺栓塞 / 心包填塞 / 张力性气胸
+  vfEnergy:1, vfAmp:1.30,
+  pulseFade:0, fadeT0:0, fadeMAP:0, fadePP:0, fadeHR:0, cprPrev:undefined, cprPP:undefined,
+  leadOff:{RA:false,LA:false,LL:false,RL:false,V1:false,V2:false,V3:false,V4:false,V5:false,V6:false},
+  log:[], alarms:{}, silenced:false, silenceUntil:0, activeAlarms:[],
+  arrestAt:-1, rosC:false, deathT:-1,
+  totVasopressor:0,
+};
+const fx={};
+
+/* ---------- 药效动力学 ---------- */
+function fxAdd(key,add,onset,half){ S.drugs.push({key,add,on:onset,half,t:S.t}); if(!fx[key])fx[key]=[]; }
+function fxVal(key){
+  let v=0;
+  for(let i=0;i<S.drugs.length;i++){ const d=S.drugs[i]; if(d.key!==key) continue;
+    const age=S.t-d.t; let w=1-Math.exp(-age/d.on); if(age>d.on) w*=Math.exp(-(age-d.on)/d.half);
+    v+=d.add*w; }
+  return v;
+}
+function pruneDrugs(){ S.drugs=S.drugs.filter(d=>S.t-d.t<d.half*8); }
+
+/* ============================================================
+   1. 心电向量环合成 → 12导联
+   ============================================================ */
+function baseComp(beat){
+  const w=S.wave, a=S.axisUsed||0, aH=(S.axisHUsed||0);
+  const ka=1+0.15*w.qrsAmp, kb=1+0.15*w.qrsAmp;
+  let c1,c2,c3,kind=beat.qrsKind;
+  if(kind==='lbbb'){
+    c1=comp(0.10,0.26,60+a,40);
+    c2=comp(0.80*ka,1.28*kb,55+a,-18+aH);
+    c3=comp(-0.62,-0.52,62+a,38);            // 终末向右后 → V1 深S
+  }else if(kind==='rbbb'){
+    c1=comp(0.09,0.22,-20+a,75);
+    c2=comp(1.00*ka,1.02*kb,58+a,-25+aH);
+    c3=comp(0.34,0.62,-58+a,112);             // 终末向左前 → V1 r'
+  }else{
+    c1=comp(0.075*ka,0.26*kb,-20+a,75);
+    c2=comp(1.16*ka,1.32*kb,52+a,-25+aH);
+    c3=comp(0.30*ka,0.34*kb,-72+a,-48+aH);
+  }
+  if(beat.rot){ const R=beat.rot*DEG,ca=Math.cos(R),sa=Math.sin(R);
+    [c1,c2,c3].forEach(c=>{const x=c.vx,y=c.vy;c.vx=x*ca-y*sa;c.vy=x*sa+y*ca;}); }
+  const lvh=1+0.9*S.land.lvh;
+  if(S.land.lvh>0){ c2=comp(1.16*ka*(1+0.55*S.land.lvh),1.32*kb*(1+0.7*S.land.lvh),50+a,-22+aH); }
+  if(S.land.rv5>0){ c2=comp(1.16*ka*(1+0.35*S.land.rv5),1.32*kb*(1-0.30*S.land.rv5),112+a,-62+aH); }
+  return {c1,c2,c3};
+}
+
+// 沿原方向按倍数放大一个向量分量(水平/额面分别缩放)
+function scaleC(c,g){ return {vx:c.vx*g, vy:c.vy*g, zh:c.zh*g, xh:c.xh*g}; }
+// 波形列表:[分量, 时相(相对R峰), 左σ, 右σ]
+/* 把全身状态翻译成这一拍心电图的形态参数
+   —— 这是心电图教学最核心的一环:全身情况直接改波形 */
+function ecgMods(){
+  const K=S.elec.K, Mg=S.elec.Mg, tc=S.temp, D=S.ecgDrug;
+  const hypo =clamp((35.6-tc)/2.6,0,1);            // 低温(Osborn J 波)
+  const hyperK=clamp((K-5.2)/2.2,0,1);            // 高钾:高尖 T、P 波消失、QRS 增宽
+  const hypoK =clamp((3.6-K)/1.1,0,1);            // 低钾:T 低平、ST 压低、U 波、QT 延长
+  const hypoMg=clamp((1.6-Mg)/1.0,0,1);            // 低镁:QT 延长
+  return {
+    tAmpMul : 1 + hyperK*1.25 - hypoK*0.72,        // 高钾 T 高耸;低钾 T 低平
+    tWidthMul: 1 - hyperK*0.42,                     // 高钾 T 变窄变尖
+    tAxis   : hyperK*(-18),                         // 高钾 T 变对称、指向更居中
+    pAmpMul : 1 - hyperK*1.0,                       // 高钾 P 波变钝消失
+    qrsWAdd : hyperK*0.9 + D.proc*0.55 + D.amio*0.16 + (tc<34?0.14:0),
+    qtAdd   : Math.min(0.17, hypoK*0.085 + hypoMg*0.085 + D.amio*0.11) - hyperK*0.05,
+    jWave   : hypo,                                 // 低温 J 波
+    dig     : D.dig,                                // 洋地黄鱼钩样 ST
+    tremor  : clamp((36.4-tc)/1.8,0,1),             // 寒战肌电
+  };
+}
+function waveList(B,C){
+  const M=ecgMods();
+  const w=S.wave, ws=B.qrsWidth, L=[];
+  if(B.pAmp>0.01&&M.pAmpMul>0.05){
+    const pm=M.pAmpMul;
+    L.push([comp(B.pAmp*0.15*w.pAmp*pm*(B.pInv?-1:1), B.pAmp*0.08*w.pAmp*pm*(B.pInv?-1:1), B.pAxisF||45, B.pAxisH||35),
+            -B.pr, 0.024*w.pWidth*(1+ (1-pm)*1.6), 0.030*w.pWidth*(1+(1-pm)*1.6)]);
+  }
+  const tilt=1+0.55*S.land.lvh*(S.tiltInv?1:0);
+  if(B.pOnly) return L;                       // 脱漏 P 波:仅心房除极,心室未下传
+  const gm=B.amp||1;                          // 宽大畸形 QRS 的增益(室早/室速)
+  const wq=ws+M.qrsWAdd;                       // 高钾 / 药物 / 低温使 QRS 增宽
+  L.push([scaleC(C.c1,gm), -0.026*wq, 0.008*wq, 0.010*wq]);
+  L.push([scaleC(C.c2,gm), 0.004,     0.009*wq,0.016*wq]);
+  L.push([scaleC(C.c3,gm), 0.038*wq,  0.010*wq,0.013*wq]);
+  const qt=(B.qt||0.3)+M.qtAdd;
+  let tA=B.tAmp*(B.tInv?-1:1)*tilt*Math.max(0.15,M.tAmpMul);
+  L.push([comp(tA*0.32*w.tAmp, tA*0.22*w.tAmp, 48+(B.tAxisF||0)-M.tAxis, -28+(B.tAxisH||0)),
+          qt, 0.046*M.tWidthMul, 0.052*M.tWidthMul]);
+  // U 波:低钾时 QT 末端出现第二个小波(真实且可辨)
+  if(M.pAmpMul<0.99&&S.elec.K<3.9){
+    L.push([comp(tA*0.10,-tA*0.06,42,-24), qt+0.075, 0.028, 0.034]);
+  }
+  // Osborn J 波:低温时 QRS 后出现的正相顿挫
+  if(M.jWave>0.05) L.push([comp(0.055*M.jWave,0.02*M.jWave,0,0), 0.060, 0.014, 0.020]);
+  B.qtEff=qt; B.qrsW=wq;
+  return L;
+}
+/* ══ 室性异位波形生成器 ══
+   三种宽 QRS 心动过速的形态必须一眼可辨,而不是同一张脸换角度:
+     单形性 VT — 每次心搏完全同形:宽大、切迹、深 S、宽而钝的 T(与 QRS 同向)
+     多形性 VT — 每搏振幅/极性/切迹随机跳变,基线粗乱,无可辨 T 波
+     尖端扭转 TdP — 振幅呈正弦包络,包络过零时极性翻转(绕基线旋转),QRS-T 融合
+   三者都写进描述符 B.vshape,保证整段历史可回溯重算。
+*/
+function ventShape(kind,T){
+  const rh=curRhythm();
+  if(kind==='mono'){
+    // 单形性:形态逐拍完全一致 —— 固定的轴(f=矢面 / h=额面)、固定的切迹、宽钝 T
+    return { c:[{w:1.00,off:-0.030},{w:0.34,off:0.006},{w:-0.62,off:0.040}],
+             f:134, h:-56,                     // 起源在左后上方 → V1/V2 负向、II/III 负向
+             notch:0.26, notchAt:0.026, tAmp:0.34, tInv:false, tWide:1.62, axis:0 };
+  }
+  if(kind==='poly'){
+    // 多形性:逐拍重新抽签。用 T 的低频位保证同一次抽签对各导联一致(整体极性翻转)
+    const r=hashNoise(Math.floor(T*FS),0), r2=hashNoise(Math.floor(T*FS)+77,0);
+    const r3=hashNoise(Math.floor(T*FS)+311,0);
+    const flip=(r<0.42)?-1:1;                       // 整拍极性(正/负 QRS)
+    const shapeSel=r2;                                // 0..1 选形态
+    let c;
+    if(shapeSel<0.34)      c=[{w:1.00,off:-0.028},{w:0.40,off:0.006},{w:-0.30,off:0.042}];   // RS 型
+    else if(shapeSel<0.67) c=[{w:0.78,off:-0.022},{w:-0.86,off:0.014},{w:0.30,off:0.048}];  // QR 型
+    else                   c=[{w:0.52,off:-0.034},{w:-0.48,off:-0.006},{w:1.00,off:0.052}]; // qR 型
+    const amp=0.72+0.55*r3;                           // 每拍振幅不同
+    // 轴也逐拍乱跳(0..360° 全周随机)—— 这是「多形」的本质
+    const af=(r3*360), ah=((r2*2-1)*150);
+    return { c, amp:amp*flip, notch:0.10+0.26*Math.abs(Math.sin(T*7.3)), notchAt:0.020+0.016*r2,
+             f:af, h:ah, tAmp:0, tInv:false, tWide:1, axis:0 };
+  }
+  // 尖端扭转:轴沿基线连续旋转 —— 每个 QRS 中心的轴向随时间走过一个正弦周期
+  const env=Math.cos((T-0.0)*(TAU*0.62));           // 约 1.6 s 一个完整翻转周期
+  const axis=env*168;                                // ±168° 旋转
+  const ampJ=0.86+0.22*Math.sin(T*3.1);              // 包络轻微起伏(不是纯正弦)
+  const inv=env<0;                                   // 过零后整体反相
+  const c=[{w:1.00,off:-0.026},{w:0.46,off:0.008},{w:-0.56,off:0.044}];
+  // 轴连续绕基线旋转:从「向左前」(+120° 矢面)扫到「向右后」(-120°)
+  return { c, amp:ampJ, notch:0.20+0.10*Math.abs(env), notchAt:0.024,
+           f:env*118, h:axis, tAmp:0, tInv:false, tWide:1, axis:0, inv };
+}
+
+/* 室性 QRS 的实际形态求值(替换窄 QRS 的分量求值) */
+/* 室性起源的 QRS 分量:沿「矢面 fDeg / 额面 hDeg」两个轴分解,
+   结构与 baseComp 的 comp() 完全一致,因此 projLead() 可直接投影到 12 导联。
+   室性起源默认落在左后方(偏后 + 偏左),这正是 VT 在 V1 呈 QS/负向的原因。 */
+function ventComp(a,fDeg,hDeg){
+  const F=fDeg*DEG,H=hDeg*DEG;
+  return {vx:a*Math.cos(F), vy:a*Math.sin(F), zh:a*Math.cos(H), xh:a*Math.sin(H)};
+}
+function evalVentBeat(V,tr,L2,baseAmp){
+  const ld=LEADS[L2], wq=V.ws;
+  let v=0;
+  // 三段宽 QRS 分量:主波 R、切迹后回落、深 S(全部沿同一主轴,故各拍形态一致)
+  v+=projLead(ventComp(V.c[0].w, V.f,   V.h),ld)*gauss(tr-V.c[0].off, 0.030*wq);
+  v+=projLead(ventComp(V.c[1].w, V.f+9, V.h+7),ld)*gauss(tr-V.c[1].off, 0.032*wq);
+  v+=projLead(ventComp(V.c[2].w, V.f-14,V.h-11),ld)*gauss(tr-V.c[2].off, 0.040*wq);
+  // QRS 顶部切迹(VT 的标志性形态)
+  if(V.notch>0.02) v-=V.notch*gauss(tr-V.notchAt, 0.015*wq)*0.85;
+  // 宽而钝的 T 波(仅单形性 VT 保留可辨 T;多形/TdP 的 T 与 QRS 融合)
+  if(V.tAmp>0.01){
+    const ctr=V.qt, up=0.050*V.tWide*wq, dn=0.092*V.tWide*wq;
+    v+=projLead(ventComp(V.tAmp*(V.tInv?-1:1), V.f+V.axis, V.h+V.axis*0.6),ld)
+       *(tr<ctr?gauss(tr-ctr,up):gauss(tr-ctr,dn));
+  }
+  return v*baseAmp;
+}
+
+// 平台形分量(ST 段)
+function plateau(tr,ctr,w,p){ const e=w*0.30; let v=0;
+  if(tr>ctr-e&&tr<ctr+w+e) v=p*smooth((tr-(ctr-e))/e)*smooth(((ctr+w+e)-tr)/e); return v; }
+
+/* 把一个心搏模板写进环形缓冲 */
+const TMPL_PRE=0.32;                          // R 峰之前的回填窗
+/* 心搏 → 任意时刻某导联的取值(纯形态,不含噪声/伪差)
+   每个心搏保存描述符,波形由 evalLead 按需实时求值:
+   这样改动任何波形参数都能立刻对整段历史重新生效,且不会残留旧数据 */
+function evalBeat(B,tr,L2){
+  const ld=LEADS[L2];
+  const ws=B.qrsWidth, C=B.C||(B.C=baseComp(B)), L=B.L||(B.L=waveList(B,C));
+  // 宽 QRS 室性心搏:形态完全由 ventShape 决定,不经过窄 QRS 分量表
+  if(B.ventWide&&B.vshape) return evalVentBeat(B.vshape,tr,L2,B.amp||1.85)*(B.vshape.inv?-1:1);
+  let v=0;
+  for(let k=0;k<L.length;k++){
+    const wc=L[k], d=tr-wc[1];
+    if(d<-0.22||d>0.42) continue;
+    v+=projLead(wc[0],ld)*(d<0?gauss(d,wc[2]):gauss(d,wc[3]));
+  }
+  // 病理性 Q 波
+  const qw=S.land.qwave;
+  if(!B.pOnly&&qw>0&&tr>-0.022&&tr<0.032){
+    const g=gauss(tr-0.006,0.011);
+    if(TERR.ant.indexOf(L2)>=0) v-=qw*g;
+    if(TERR.inf.indexOf(L2)>=0) v-=qw*1.15*g;
+    if(TERR.lat.indexOf(L2)>=0) v-=qw*0.80*g;
+  }
+  // ST 段偏移(区域性 + 全局)
+  if(!B.pOnly&&tr>0.030&&tr<(B.qtEff||B.qt||0.3)*0.72){
+    const M=ecgMods();
+    let e=S.wave.stShift;
+    if(TERR.ant.indexOf(L2)>=0) e+=S.land.ant;
+    if(TERR.inf.indexOf(L2)>=0) e+=S.land.inf;
+    if(TERR.lat.indexOf(L2)>=0) e+=S.land.lat;
+    // 低钾的 ST 压低
+    if(S.elec.K<3.6) e-=clamp((3.6-S.elec.K),0,1.2)*0.14;
+    // 心肌缺血:静息 + 应激,ST 压低呈区域性(前壁/下壁/侧壁)
+    const is=S.isch;
+    if(is.sev>0){
+      if(TERR.ant.indexOf(L2)>=0) e-=is.sev*(0.16+0.22*is.on);
+      if(TERR.inf.indexOf(L2)>=0) e-=is.sev*(0.20+0.28*is.on);
+      if(TERR.lat.indexOf(L2)>=0) e-=is.sev*(0.12+0.18*is.on);
+    }
+    const qt=B.qtEff||B.qt||0.3;
+    v+=plateau(tr,0.052,qt*0.62-e,e*smooth((tr-0.030)/0.03));
+    // 洋地黄效应:ST 段特征性「鱼钩样」下斜(aVR、V5 最典型)
+    if(M.dig>0.02){
+      const tiltD=tr-0.05;
+      if(tiltD>0&&tiltD<0.16){
+        const scoop=-M.dig*0.20*Math.sin(Math.PI*clamp(tiltD/0.16,0,1))*0.8
+                    -M.dig*0.10*clamp(tiltD/0.16,0,1);
+        v+=scoop*(L2===3||L2===10||L2===4?1:0.5);
+      }
+    }
+  }
+  return v;
+}
+function beatSpan(B){ return 0.34+Math.min(0.55,(B.qt||0.3)+0.12); }
+// 某一绝对时刻 t 的第 L2 导联纯净形态值
+function evalLead(t,L2){
+  const _r=curRhythm();
+  if(_r.vf) return vfSample(t,L2);
+  if(_r.flutterV) return vflSample(t,L2);
+  let v=atrialNoise(t,L2);
+  const bt=BEATS;
+  for(let k=bt.length-1;k>=0;k--){
+    const b=bt[k];
+    if(t>b.t+0.02 && t-b.t>beatSpan(b.B)) break;      // 更早的心搏已超出窗口
+    if(t>=b.t-0.34&&t<=b.t+beatSpan(b.B)) v+=evalBeat(b.B,t-b.t,L2);
+  }
+  return v;
+}
+// 用心搏描述符重建整个环形缓冲区(启动 / 参数改变后调用)
+function renderBuf(span){
+  span=span||BSEC;
+  const ai1=gIdx, n=Math.min(BUFSZ,Math.round(span*FS)), ai0=ai1-n+1;
+  for(let L2=0;L2<12;L2++){
+    const b=ecgBuf[L2];
+    for(let ai=ai0;ai<=ai1;ai++) b[gmod(ai)]=evalLead(ai/FS,L2);
+  }
+  S.sigDirty=false;
+}
+// 波形参数改变:清掉缓存的向量分量,重建可见段
+function markDirty(){
+  for(let i=0;i<BEATS.length;i++){ BEATS[i].B.C=null; BEATS[i].B.L=null; }
+  S.sigDirty=true; S.sigDirtyAt=S.t;
+}
+
+/* ============================================================
+   2. 心律引擎
+   ============================================================ */
+const RHY={
+ sinus:{n:'窦性心律',rate:1.0,p:true,pr:.16,qrs:.09,qw:1.0,t:1.0,arr:0,alias:'sinus'},
+ // 窦速 / 窦缓 不再是独立心律,而是窦性心律下的 HR 档位(见 SINUS_TIER)
+ sinusT:{n:'窦性心动过速',rate:1.9,p:true,pr:.14,qrs:.09,qw:1.0,t:.8,arr:.03,alias:'sinus'},
+ sinusB:{n:'窦性心动过缓',rate:.62,p:true,pr:.20,qrs:.10,qw:1.0,t:1.3,arr:.02,alias:'sinus'},
+ rsa:{n:'呼吸性窦性心律不齐',rate:1.0,p:true,pr:.17,qrs:.09,qw:1.0,t:1.0,arr:.28},
+ af:{n:'心房颤动',rate:1.0,p:false,pr:0,qrs:.09,qw:.95,t:1.0,arr:.35,fibA:true},
+ afl:{n:'心房扑动(2:1)',rate:1.9,p:false,pr:.16,qrs:.09,qw:.95,t:1.0,arr:.06,flutter:true},
+ svt:{n:'阵发性室上速',rate:2.8,p:false,pr:.10,qrs:.08,qw:.9,t:.7,arr:.02,retro:true},
+ // 单形性室速:形态完全一致的宽大 QRS,每个心动周期同形,轴固定
+ vt:{n:'单形性室速',rate:4.4,p:false,pr:0,qrs:.17,qw:0,t:.62,arr:.03,wide:true,rot:1,pulse:true,hrMax:230},
+ // 多形性室速:每搏 QRS 形态/振幅/轴都变,无规律周期 → 没有可辨认的 T 波
+ vtn:{n:'多形性室速',rate:4.6,p:false,pr:0,qrs:.17,qw:0,t:0,arr:.55,wide:true,poly:true,pulse:true,hrMax:240},
+ // 尖端扭转型室速:宽 QRS 振幅与极性沿基线周期性翻转(轴绕基线旋转),T 波与 QRS 融合
+ tdp:{n:'尖端扭转型室速',rate:4.2,p:false,pr:0,qrs:.17,qw:0,t:0,arr:.22,wide:true,twist:true,pulse:true,hrMax:220},
+ pvc:{n:'频发室性早搏',rate:1.05,p:true,pr:.17,qrs:.09,qw:1.0,t:1.0,arr:0,pvc:.28},
+ avb1:{n:'Ⅰ度房室传导阻滞',rate:1.0,p:true,pr:.30,qrs:.10,qw:1.0,t:1.1,arr:.03},
+ avb2:{n:'Ⅱ度房室传导阻滞',rate:1.3,p:true,pr:.22,qrs:.10,qw:1.0,t:1.1,arr:.05,drop:true,conduct:0.55},
+ avb3:{n:'Ⅲ度房室传导阻滞',rate:1.0,p:true,pr:0,qrs:.14,qw:1.0,t:1.2,arr:.02,junc:true,complete:true},
+ ag:{n:'心室停搏',rate:0,p:false,pr:0,qrs:0,qw:0,t:0,arr:0,asys:true},
+ // 室扑:介于单形性 VT 与 VF 之间 —— 正弦样连续波,无基线、无可辨 QRS-T
+ vfl:{n:'心室扑动',rate:4.0,p:false,pr:0,qrs:0,qw:0,t:0,arr:.30,flutterV:true,pulse:true,hrMax:300},
+ pea:{n:'无脉性电活动',rate:.85,p:false,pr:0,qrs:.17,qw:0,t:0,arr:.25,wide:true,rot:1,asys:true,org:true},
+ vf:{n:'心室颤动',rate:0,p:false,pr:0,qrs:0,qw:0,t:0,arr:0,vf:true},
+};
+function curRhythm(){ const R=RHY[S.rhythmForce||S.rhythm]||RHY.sinus;
+  // 窦速/窦缓:心律本身仍是窦性,形态细节由当前心率所在的档位决定
+  if(R.alias==='sinus'){ const T=sinusTierOf(S.hr);
+    R.pr=T.pr; R.qrs=T.qrs; R.t=T.t; R.arr=T.arr; R._tier=T.n; }
+  return R; }
+/* 窦性心律的频率档位 —— 窦速/窦缓不是独立心律,只是同一个窦性节律的不同心率区间。
+   档位决定心率目标区间与 P-QRS-T 的形态细节(窦速时 PR 缩短、T 变窄;窦缓时相反)。*/
+const SINUS_TIER=[
+  {n:'窦性心律',   rate:1.0, pr:.16, qrs:.09, t:1.0, arr:0,     lo:60,  hi:100},
+  {n:'窦性心动过速', rate:1.9, pr:.14, qrs:.09, t:.80, arr:.03,  lo:100, hi:220},
+  {n:'窦性心动过缓', rate:.62, pr:.20, qrs:.10, t:1.30, arr:.02,  lo:25,  hi:60},
+];
+function rhyName(){ const R=RHY[S.rhythmForce||S.rhythm]||RHY.sinus;
+  return (R.alias==='sinus')?sinusTierOf(S.hr).n:R.n; }
+function sinusTierOf(hr){ const h=hr||S.hr||70;
+  return h>100?SINUS_TIER[1]:(h<60?SINUS_TIER[2]:SINUS_TIER[0]); }
+
+/* 房性电活动(AF/AFL 底噪) */
+function atrialNoise(t,L2){
+  const rh=curRhythm();
+  let v=0;
+  if(rh.fibA){ v=(Math.sin(t*11.3+L2)*0.5+Math.sin(t*7.1+L2*2)*0.3+Math.sin(t*17.7)*0.2)*0.028
+              +(Math.sin(t*23)+Math.sin(t*31))*0.008; }
+  else if(rh.flutter){ v=Math.sin(t*TAU*5.0+L2*0.6)*0.105; }
+  return v;
+}
+
+function stepRhythm(){
+  const rh=curRhythm();
+  if(rh.vf){ /* 由 loopVF 处理 */ }
+  if(S.pulsePresent===false && !rh.org && !rh.asys){}
+  // 到下一拍
+  const rr=60/S.hr;
+  const cycle=rh.asys&&rh.org?1.0:(rh.junc&&rh.complete?0.55:0.0001);
+  let gap=rh.complete?60/38:(rh.asys&&rh.org?rr:rr);
+  if(S.rhythmForce==='avb2'||rh.drop){
+    if(Math.random()<0.45){ /* 漏搏 */ S.nextBeat+=gap*rnd(1.9,2.1); return; }
+  }
+  S.nextBeat+=gap;
+}
+
+function makeBeatDesc(T){
+  const rh=curRhythm(), w=S.wave;
+  T=(T===undefined)?S.nextBeat:T;
+  S.axisUsed=S.wave.axis; S.axisHUsed=0;
+  const isPVC=(rh.pvc&&Math.random()<rh.pvc);
+  const B={ t:T, pr:rh.pr||0.14, qrsWidth:((rh.qrs||0.09)/0.09)*w.qrsWidth,
+            qt:0, pAmp:rh.p?1:0, tAmp:rh.t===0?0:(rh.t||1),
+            tInv:false, qrsKind:(S.land.lbbb>0.5?'lbbb':(S.land.rbbb>0.5?'rbbb':null)),
+            rot:0, dur:0 };
+  if(isPVC||rh.wide){
+    B.pAmp=0;
+    B.qrsWidth=isPVC?Math.max(1.7,(rh.qrs||0.16)/0.09):((rh.qrs||0.16)/0.09);
+    // ── 宽 QRS 的独立形态:三型 VT 各用各的生成器;室早用单形性的一个固定变体
+    if(rh.twist)      B.vshape=ventShape('twist',T);
+    else if(rh.poly)  B.vshape=ventShape('poly', T);
+    else              B.vshape=ventShape('mono',T);     // 单形性 VT 与室早共用(形态本就该一致)
+    if(isPVC){ B.vshape=Object.assign({},B.vshape,{notch:0.30,axis:(Math.random()<0.5?38:-42)}); }
+    B.vshape.qt=B.qt||0.34;
+    B.vshape.ws=B.qrsWidth*(1+(ecgMods().qrsWAdd||0))*0.5;
+    B.vshape.inv=B.vshape.inv||false;
+    // T 波:单形性 VT 有宽钝 T(与 QRS 同向);多形/TdP 的 T 与 QRS 融合 → 不单列
+    B.tAmp = B.vshape.tAmp; B.ventWide=true;
+    B.amp=rh.vf?1:(rh.pulse?1.85:1.55); B.pulseOK=!!rh.pulse;   // 室性起源 QRS 宽大畸形
+  }
+  // 二度房室传导阻滞:按传导比例决定本次是否下传
+  if(rh.drop){ B.pOnly=Math.random()>rh.conduct; if(!B.pOnly) B.pvc=1; }
+  if(rh.retro) B.pAmp=0;
+  if(B.pOnly) B.tAmp=0;
+  if(rh.junc&&rh.complete){ B.pAmp=0; B.pr=0; }
+  B.pr=clamp(B.pr*(isPVC?1:1),0.06,0.36);
+  const rr=S.nextRR||(60/Math.max(30,S.hr));
+  B.qt=clamp(0.40*Math.sqrt(Math.max(0.25,rr))*w.qrsWidth+ecgMods().qtAdd,0.20,0.66);
+  if(B.vshape) B.vshape.qt=B.qt;
+  B.rr=rr; B.dur=Math.max(B.qt+0.14, rr);
+  const _M=ecgMods();
+  S.prInt=B.pr; S.qtInt=B.qt; S.qrsInt=0.09*(B.qrsWidth+_M.qrsWAdd);
+  return B;
+}
+
+/* ============================================================
+   3. 循环动力学 (Windkessel / Guyton 简化回路)
+   SV = EDV − ESV ;  EF∝收缩力 ;  EDV∝血容量 ;  CO=HR·SV
+   MAP = CO·SVR + CVP ;  PP = SV / 动脉顺应性
+   ============================================================ */
+function hemodynamics(dt){
+  const rh=curRhythm();
+  // --- 药效叠加
+  let contract=clamp(S.base.contract+fxVal('contract'),0.03,2.4);
+  let svr=clamp(S.base.svr+fxVal('svr'),4,45);
+  let vol=clamp(S.base.vol+fxVal('vol'),35,180);
+  // --- 酸中毒/缺氧/发热 抑制收缩力
+  const acid=clamp((7.32-S.ph)*1.2,0,0.25);
+  contract*=clamp(1-acid,0.78,1);
+  contract*=clamp(1-Math.min(0.28,Math.max(0,S.lactate-2)*0.028),0.74,1);
+  contract*=clamp(1-Math.max(0,S.temp-39)*0.12,0.4,1);
+  // --- 停搏
+  if(!S.pulsePresent) contract*=0.02;
+  // 除颤后心肌顿抑
+  if(S.stun>0) contract*=clamp(S.stun,0.15,1);
+  // 交感代偿:早期靠血管收缩把血压撑住;储备耗竭后这部分代偿消失 → 血压断崖
+  const comp=(S.prog.comp===undefined?1:S.prog.comp);
+  const sDrop=clamp(1-Math.max(0,(S.vrate||S.hr||70)-70)*0.0035,0.62,1);
+  svr*=lerp(sDrop,1.0,1-comp);
+  svr*= 1 + 0.95*S.lesion.pe + 1.10*S.lesion.tension;   // 肺栓塞/气胸:急性代偿性血管收缩
+  S.contract=contract; S.svr=svr; S.vol=vol;
+  // --- 搏出量
+  const preload=vol/100;
+  const edv=120*preload*(1+0.08*(contract-1));
+  // 射血分数 EF = 收缩力决定,SV = EDV × EF  (收缩力↓ → EF↓ → SV↓)
+  const ef=clamp(0.58*contract,0.05,0.75);
+  let svMax=edv*ef;
+  // 心率过快 → 充盈不足; 过缓 → 有上限
+  const fill=clamp(1-Math.max(0,(S.vrate||S.hr||70)-110)*0.010,0.45,1);   // 心率↑ → 充盈时间↓
+  svMax*=fill;
+  // 后负荷失配
+  svMax*=clamp(1-Math.max(0,(S.map||90)-112)*0.010,0.45,1);   // 后负荷失配
+  // 室性心律:心室在做无效的快速同步收缩,顺行射血分数极低,并随时间进一步衰竭
+  /* ── 结构性急症 ──
+     心包填塞:心室被压塌 → 前负荷骤降,同时静脉压急剧升高(标志性「低血压 + 高中心静脉压」)
+     急性肺栓塞:右心室急性衰竭 → 左心前负荷↓ + 神经体液性血管收缩 + 通气/血流比失调
+     张力性气胸:胸腔内压升高 → 静脉回流受阻 + 纵隔移位导致循环阻力↑ */
+  const L=S.lesion;
+  if(L.tamp>0){ svMax*=1-0.62*L.tamp; }
+  if(L.pe>0){   svMax*=1-0.42*L.pe; }
+  if(L.tension>0){ svMax*=1-0.62*L.tension; }
+  if(rh.wide&&rh.pulse) svMax*=S.prog.vtEff;
+  svMax=clamp(svMax,0,150);
+  if(!S.pulsePresent) svMax=0;            // 停搏:心室不射出任何血液
+  // --- 流量与压力
+  const hrEff=S.pulsePresent?(S.vrate||S.hr):0;
+  const co=hrEff*svMax/1000;
+  /* ── 出入量平衡:尿量由肾灌注压驱动;输液与不显性失水持续改变血容量 ──
+     血容量 100% ≈ 50 mL/1%(70 kg×70 mL/kg),尿量和补液都作用在这一格上 */
+  const UO=clamp((S.map-42)*0.055,0,1.25)*S.weight;          // mL/h 尿量
+  S.io.urineRate=clamp(S.map<38?0:UO,0,120);
+  const ins=(26+Math.max(0,S.temp-37)*18)*S.waterLoss;        // mL/h 不显性失水
+  S.io.insens=ins;
+  S.io.infuse=clamp(S.io.rate||0,0,500);
+  S.io.urineTotal+=S.io.urineRate*dt/3600;
+  S.io.insensTotal=(S.io.insensTotal||0)+ins*dt/3600;
+  S.io.infTotal=(S.io.infTotal||0)+S.io.infuse*dt/3600;
+  S.io.balance=S.io.infTotal-(S.io.urine+S.io.insensTotal);
+  S.io.dBal=(S.io.infuse-S.io.urineRate-S.io.insens)*dt/3600;   // 本步净变化 mL
+  if(S.prog.on&&!S.dead) S.base.vol=clamp(S.base.vol+S.io.dBal/50,35,160);
+
+  // 中心静脉压:无脉时静脉血池也持续回流到组织,必须按上一帧的 cvp 衰减
+  // (若每帧从公式重推,指数衰减会被抵消成不动点)
+  let cvp=clamp(2+0.18*(vol-80),0,26);
+  if(S.cvp!==undefined&&(!S.pulsePresent||S.map<28)) cvp=clamp(S.cvp*Math.exp(-dt/(S.pulsePresent?6:7.5)),0,26);
+  cvp=clamp(cvp+ 30*S.lesion.tamp + 6*S.lesion.pe, 0,40);   // 填塞把静脉血挤进胸腔
+  const map=co*svr+cvp;
+  S.sv=svMax; S.co=co; S.cvp=cvp; S.map=map;
+  // 顺应性随压力下降
+  const cart=1.35*(1+0.0045*(map-80));
+  const pp=clamp(svMax/Math.max(0.6,cart),0,110);
+  S.pp=pp;
+  // --- 血压绝对值
+  let m=map, p=pp;
+  if(S.pulseFade>0){
+    // 室颤/无脉发生后的「残余血压」期:主动脉内残血继续向外周流动,
+    // 动脉导管有惯性 → 最初几秒仍能读到微弱但确实存在的压力
+    S.pulseFade=Math.max(0,S.pulseFade-dt);
+    const k=Math.exp(-(S.fadeT0-S.pulseFade)/1.9);   // 已经过的时间 → 压力指数衰减
+    m=S.fadeMAP*k; p=S.fadePP*k;
+    S.pp=p; S.pulse=(S.pulseFade>0.25)?clamp(S.fadeHR*(0.25+0.75*k),0,220):0;
+    if(S.pulseFade<=0) S.pulsePresent=false;
+  }else if(!S.pulsePresent){
+    m=m*Math.exp(-dt/2.6); p=p*Math.exp(-dt/1.7);
+    S.pulse=0;
+  }
+  S.sbp=m+p*0.66; S.dbp=m-p*0.34;
+  if(S.mapLock>0) m=S.mapLock;
+  S.sbp=clamp(S.sbp,0,260); S.dbp=clamp(S.dbp,0,180); S.map=clamp(m,0,200);
+  // --- CPR 维持灌注:胸外按压把 MAP 维持在 40–70 mmHg(深度越大维持越高)
+  // 用专属的跨帧变量累积,不受每帧重推的 m/p 影响
+  if(S.cpr.active&&!S.pulsePresent&&S.pulseFade<=0){
+    const g2=clamp(dt/0.8,0,1);
+    S.cprPrev=lerp(S.cprPrev===undefined?S.map:S.cprPrev,
+                   clamp(38+S.cpr.depth*4+(S.cpr.depth>=5?8:0),20,70),g2);
+    S.cprPP  =lerp(S.cprPP  ===undefined?S.pp  :S.cprPP,
+                   clamp(24+S.cpr.depth*2.4,8,70),g2);
+    S.map=S.cprPrev; S.pp=S.cprPP;
+    S.sbp=clamp(S.map+S.pp*0.66,0,150); S.dbp=clamp(S.map-S.pp*0.34,0,110);
+  }else{ S.cprPrev=undefined; S.cprPP=undefined; }
+  // --- 温度效应
+  S.temp=S.base.temp+fxVal('temp')+ (S.fever||0);
+  const tDev=S.temp-37;
+  S.base.hrBase=clamp(S.base.hrBase+0,40,180);
+  // --- 心率来源
+  let hr=S.base.hrBase;
+  hr+=fxVal('hrAdd');
+  hr+=tDev*10;                                  // 发热
+  hr+=clamp((S.vol-100)*0.06,-14,14);           // 容量反应(Frank-Starling 变)
+  hr*=clamp(1-Math.max(0,S.temp-39)*0.06,0.6,1);
+  // ① 心律自身的频率(窦速 / 室上速 / 室速…)
+  const _rh=curRhythm();
+  if(S.hrLock>0) hr=S.hrLock;
+  else if(_rh.complete) hr=42;                   // 完全性房室传导阻滞:逸搏心率
+  else hr*=(_rh.rate||1);
+  // ② 失代偿性心动过速:叠加在基础频率之上,受交感储备限制
+  if(S.hrLock<=0){
+    hr+=clamp((70-(S.map||90))*2.0,0,45)*(0.45+0.55*(S.prog.comp===undefined?1:S.prog.comp));
+    if(S.vol<100) hr*=1+(100-S.vol)*0.005;      // 容量丢失 → 乘性心率上升(失代偿)
+    if(_rh.wide) hr=Math.min(hr,235);            // 室性心律心率上限
+  }
+  // 窦性心律不齐 / 呼吸性变异
+  if(S.rhythmForce==='rsa'||S.rhythm==='rsa'){
+    hr*=1+0.22*S.wave.rsa*Math.sin(TAU*(S.inspPhase||0)+0.6);
+  }
+  if(!S.pulsePresent&&!_rh.org) hr=0;            // 无有效电活动 → 心率 0(PEA 除外)
+  if(S.dead) hr=0;
+  // 心率上限:按心律各自的最高可发放频率(窦性 220,室速 230/240/220,其他 300)
+  S.hr=clamp(hr,0,S.pulsePresent?((_rh.hrMax)||300):300);
+  if(S.pulseFade<=0) S.pulse=S.pulsePresent?Math.round(S.vrate||S.hr):0;
+  if(!rh.drop&&!rh.complete) S.vrate=S.hr;
+}
+
+/* ============================================================
+   4. 气体交换 / 氧输送 / 酸碱
+   ============================================================ */
+function gasExchange(dt){
+  // --- 分钟通气量:Vt 6.5 mL/kg,死腔 2.2 mL/kg
+  const Vt=7.1*S.weight/1000*Math.min(1.7,1+Math.max(0,S.lactate-1)*0.10+Math.max(0,S.temp-37)*0.02);
+  const Vd=2.2*S.weight/1000;
+  const rrEff=S.mechVent?Math.max(12,S.rrInt):S.rrInt;
+  const VA=Math.max(0.15,rrEff*(Vt-Vd));                 // 肺泡通气量 L/min
+  const vco2=3.2*S.weight*(1+Math.max(0,S.temp-37)*0.14);// CO₂ 产生量 mL/min
+  if(!S.mechVent&&S.rrInt<=0){
+    S.paco2=clamp(S.paco2+(5/60)*dt,10,150);             // 呼吸暂停:PaCO₂ ↑5 mmHg/min
+  }else{
+    const target=clamp(0.863*vco2/VA,12,150);   // PaCO₂ = 0.863·VCO₂/VA
+    const up=target>S.paco2;
+    const rate=S.mechVent?1.2:(up?0.5:0.35);
+    S.paco2=clamp(S.paco2+(target-S.paco2)*clamp(rate*dt,0,1),10,150);
+  }
+  // --- 肺泡气方程
+  const pao2f=S.fio2*(760-47)-S.paco2/0.8;
+  // --- A-a 梯度:年龄 + 肺内分流(低氧/低灌注)
+  const ageGap=3+S.age*0.12;
+  const shunt=clamp(0.02+0.16*S.lesion.pe+Math.max(0,(97-S.sao2))/45*0.22
+            +Math.max(0,(68-S.map))/90*0.10,0,0.55);
+  const gap=ageGap+shunt*150+Math.max(0,1-S.fio2/0.21)*20;
+  const pao2=clamp(pao2f-gap,18,660);
+  S.pao2=lerp(S.pao2,pao2,clamp(dt*0.35,0,1));
+  // --- Severinghaus 氧解离曲线(含 pH 校正)
+  const n=2.7,P50=(26.6)*(S.ph<7.4?Math.pow(10,0.3*(7.4-S.ph)):1);
+  const sao2=clamp(Math.pow(S.pao2,n)/(Math.pow(S.pao2,n)+Math.pow(P50,n))*100,25,100);
+  S.sao2=lerp(S.sao2,sao2,clamp(dt*0.45,0,1));
+  S.spo2=clamp(S.sao2+fxVal('spo2'),25,100);
+  if(S.spo2Lock) S.spo2=S.spo2Lock;
+  // --- 氧输送 / 氧耗
+  const vo2=clamp(3.5*S.weight*(1+Math.max(0,S.temp-37)*0.14)+fxVal('vo2'),120,700);
+  S.vo2=vo2;
+  const cao2=1.34*S.hb*(S.sao2/100)+0.003*S.pao2;      // ml/dL
+  const do2ml=cao2*S.co;                                  // ml/min = CaO₂(dL/dL·mL/dL)×CO
+  S.dox=do2ml/vo2;                                       // DO₂/VO₂
+  const svo2t=clamp((do2ml-vo2)/Math.max(1,1.34*S.hb*S.co)*100,20,92);
+  S.svo2=lerp(S.svo2,svo2t,clamp(dt*0.08,0,1));
+  // --- 组织缺氧 → 乳酸 → 酸碱
+  const o2def=S.dox<2.8?Math.max(0,(2.8-S.dox)*0.11):0;
+  S.lactate=clamp(S.lactate+(o2def-0.010)*dt,0.1,12);
+  if(!S.pulsePresent) S.lactate=clamp(S.lactate+0.010*dt,0.1,12);
+  const hco3=clamp(24-(S.lactate>1?(S.lactate-1)*1.6:0),6,30);
+  S.ph=clamp(6.1+Math.log10(hco3/(0.03*S.paco2)),6.9,7.65);
+  S.baseExc=-(hco3-24.4);
+  // --- 低体温 → 氧曲线左移(去饱和变慢)
+  if(S.temp<33) S.sao2*=clamp(1+(33-S.temp)*0.008,0.85,1);
+}
+
+/* ============================================================
+   5. 压力 / 脉搏波 / 呼吸波 / 呼末 CO2
+   ============================================================ */
+function aorticShape(tr,psys,pdia){
+  // tr: 距收缩起始(≈R峰)时间
+  const up=0.075+0.35/Math.max(20,S.hr);
+  if(tr<0) return pdia;
+  if(tr<up){ const a=smooth(tr/up); return pdia+(psys-pdia)*a; }
+  const pes=pdia+0.30*(psys-pdia);
+  const tau=clamp(1.15*(0.9/Math.max(25,S.hr/60)),0.28,1.5);
+  return pes+(psys-pes)*Math.exp(-(tr-up)/tau);
+}
+function waveforms(dt){
+  const A=S.art, rh=curRhythm();
+  // 有创动脉压:主动脉 Windkessel → 二阶欠阻尼系统 → 桡动脉重搏切迹
+  const tr=(S.t-S.art.lastBeatT);
+  const up=0.075+0.35/Math.max(20,S.hr);
+  const ua=aorticShape(tr,S.sbp,S.dbp)-S.map;
+  const fn=clamp(3.0+S.hr*0.006,2.4,6.2), wn=TAU*fn, z=0.34;
+  const acc=wn*wn*(ua-A.y)-2*z*wn*A.dy;
+  A.dy=clamp(A.dy+acc*dt,-9000,9000);
+  A.y+=A.dy*dt;
+  if(!isFinite(A.y)){A.y=0;A.dy=0;}
+  if(!S.pulsePresent){ A.y*=Math.exp(-dt*2.2); A.dy*=Math.exp(-dt*3); }
+  const artP=S.map+A.y;
+  const i=gmod(gIdx);
+  bufArt[i]=S.pulsePresent?clamp(artP,0,260):lerp(bufArt[i],0,clamp(dt*1.4,0,1));
+  A.peak=Math.max(A.peak,artP); A.trough=Math.min(A.trough,artP);
+  // 脉搏波(PPG):只保留物理形态,运动伪差在渲染时叠加
+  if(S.pulsePresent){
+    const n=clamp((artP-S.dbp)/(Math.max(4,S.pp)+0.001),-0.4,1.9);
+    bufPleth[i]=clamp(Math.pow(Math.max(0,n),1.18)*0.80+0.36,0,2.2);
+  }else{
+    bufPleth[i]=0.06+0.05*Math.sin(S.t*1.7);
+  }
+  // 呼吸(阻抗法)
+  S.inspPhase=(S.inspPhase+(S.rrInt/60)*dt)%1;
+  let resp=Math.sin(TAU*S.inspPhase)*0.5+Math.sin(TAU*S.inspPhase*2)*0.12;
+  if(S.apnea&&!S.mechVent) resp*=Math.exp(-dt*0.7);
+  if(S.mechVent) resp=Math.sin(S.t*TAU*Math.max(0.2,S.rrInt/60))*0.42+(S.cpr.active?Math.sin(S.t*TAU*1.6)*0.14:0);
+  bufResp[i]=resp;
+  // 呼末二氧化碳
+  if(S.pulsePresent||S.mechVent){
+    const ph=S.inspPhase;
+    const et=S.paco2*0.96, base=2;
+    let co2=base;
+    if(ph>0.72){ const u=(ph-0.72)/0.28; co2=lerp(et,base,Math.pow(u,1.6)); }
+    else if(ph>0.55){ co2=lerp(base,et,Math.pow((ph-0.55)/0.17,0.8)); }
+    bufCO2[i]=co2;
+  } else bufCO2[i]=0;
+  S.etco2=bufCO2[i];
+}
+function gidx(){ return gmod(gIdx); }
+
+/* ============================================================
+   6. NIBP 振荡法袖带
+   ============================================================ */
+function nibpStep(dt){
+  const N=S.nibp;
+  if(N.st==='idle') return;
+  const rate=(N.st==='inflate')?N.inflate:N.deflate;
+  N.cuff=clamp(N.cuff+(N.st==='inflate'?1:-1)*rate*dt,0,240);
+  const target=clamp(S.sbp+70,160,220);
+  if(N.st==='inflate'&&N.cuff>=target){ N.cuff=target; N.st='deflate'; log('袖带加压至 '+Math.round(N.cuff)+' mmHg,开始放气'); beep(1200,.06,.05); }
+  if(N.st==='deflate'&&N.cuff<=Math.max(30,S.dbp-30)){ finishNibp(); return; }
+  // 振荡幅度包络:非对称高斯,峰值在 MAP 处
+  //   上升支 σ 使 ratio=0.25 恰好落在真实收缩压 → 收缩压法
+  //   下降支 σ 使 ratio=0.72 恰好落在真实舒张压 → 舒张压法
+  let amp=0;
+  if(N.st==='deflate'&&N.cuff<S.sbp+6){
+    const span=Math.max(8,S.sbp-S.dbp);
+    const u=(S.sbp-N.cuff)/span;                     // 0=收缩压, 1=舒张压
+    const uMax=clamp((S.sbp-S.map)/span,0.20,0.80);
+    // sR 使 ratio=0.25 落在收缩压;sF 使 ratio=0.72 落在舒张压
+    const sR=clamp(uMax/1.177,0.15,0.60), sF=clamp((1-uMax)/0.6005,0.15,0.70);
+    const sg=(u<uMax)?sR:sF;
+    if(u>=0) amp=Math.exp(-Math.pow((u-uMax)/sg,2))*clamp(S.pp/45,0.2,1.8);
+  }
+  // 袖带振荡:基频 = 心率,幅度由包络 amp 调制
+  // 短窗平滑(真实监护仪同样对振荡包络做滤波)
+  N.ampF=(N.ampF||0)+ (amp-(N.ampF||0))*0.22;
+  if(N.ampF>N.peak){ N.peak=N.ampF; N.peakCuff=N.cuff; }
+  else if(N.peak>0.05&&N.ampF<N.peak*0.985) N.desc=1;      // 进入下降支
+  N.hist.push({cuff:N.cuff,amp:N.ampF*(1+Math.min(0.8,motionAt(S.t)*0.5))});
+  if(N.hist.length>900) N.hist.shift();
+  if(N.st==='deflate'&&N.peak>0.15){
+    const r=N.ampF/N.peak;
+    if(!N.sbpx&&r>=0.25) N.sbpx=Math.round(N.cuff);
+    if(N.sbpx&&!N.dbpx&&N.desc&&N.cuff<N.sbpx-6&&(r<=0.72||r<0.15)) N.dbpx=Math.round(N.cuff);
+  }
+  S.cuff=N.cuff;
+}
+function finishNibp(){
+  const N=S.nibp;
+  if(!N.peak){ N.st='idle'; S.cuff=0; return; }
+  // 阈值未捕获时的兜底(最大振幅法 + 经验脉压换算)
+  if(!N.sbpx) N.sbpx=Math.round(N.peakCuff+Math.max(12,N.peak*22));
+  if(N.dbpx>=N.sbpx-4) N.dbpx=Math.round(N.peakCuff-Math.max(8,N.peak*16));
+  if(!N.dbpx) N.dbpx=Math.round(N.peakCuff-Math.max(8,N.peak*16));
+  const sbp=clamp(N.sbpx,20,260), dbp=clamp(N.dbpx,10,200);
+  const map=clamp(Math.round(N.peakCuff),20,220);   // 最大振幅法:平均压 = 振幅最大时的袖带压
+  S.nibpRes={sbp,dbp,map,t:Date.now()};
+  log('NIBP 完成:'+sbp+'/'+dbp+'  MAP '+map);
+  beep(2000,.08,.06); setTimeout(()=>beep(2000,.08,.06),120);
+  N.st='idle'; S.cuff=0; N.hist=[];
+}
+
+/* ============================================================
+   7. 除颤 / 同步电复律
+   ============================================================ */
+const DEFIB_STEPS=[50,70,100,120,150,170,200,240,300,360];
+function defibSetE(d){ S.defib.e=clamp(d,20,400); if(S.defib.st==='ready'||S.defib.charged){S.defib.st='charging';S.defib.ch=0;S.defib.charged=false;} }
+function defibCharge(){ const D=S.defib; if(D.st==='ready')return; D.st='charging'; D.ch=0; D.charged=false;
+  if(!S.cheat.infEnergy) D.batt=clamp(D.batt-0.3,0,100);
+  startTone(140+ (D.e/360)*420, 1.0); }
+function defibAbort(){ const D=S.defib; if(D.st!=='fired'){D.st='idle';D.ch=0;D.charged=false;stopTone();} }
+function shockableOK(){ const rh=curRhythm();
+  return (S.rhythmForce==='vf')||rh.vf||(rh.wide&&rh.pulse); }
+function defibShock(){
+  const D=S.defib, rh=curRhythm();
+  if(!D.charged){ toast(D.st==='charging'?'电容器充电中,请等充满再放电':'请先点「开始充电」'); return; }
+  if(!shockableOK()){
+    if(S.cheat.forceShock){} else { toast('⚠ '+rh.n+' 不是除颤适应症 — 未放电'); D.st='idle'; return; }
+  }
+  D.charged=false;
+  stopTone(); playShock(D.e);
+  D.st='fired';
+  D.ch=0;
+  const shockable=shockableOK();
+  // 成功率:能量↑ 持续时间↓ CPR↑
+  const vfDur=S.arrestAt<0?0:(S.t-S.arrestAt);
+  const eF=clamp((D.e-70)/290,0,1);
+  let p=(0.30+0.62*eF)*Math.exp(-vfDur/260)*(S.cpr.active?1.30:1.0);
+  if(D.e<120) p*=0.50;
+  if(D.sync&&!rh.vf) p*=1.25;
+  if(S.cheat.forceShock) p=Math.max(p,S.cheat.alwaysROSC?1:0.85);   // 娱乐模式
+  p=clamp(p,0.02,0.99);
+  const ok=Math.random()<p;
+  log('⚡ 除颤 '+D.e+'J → '+(ok?'转复成功':'未转复')+' (p='+p.toFixed(2)+')');
+  if(ok){
+    S.vfEnergy=1; S.vfAmp=1.35;
+    if(S.dead){ S.dead=false; log('✓ 除颤后恢复自主循环 — 患者复苏'); }
+    S.deathT=0; S.shockT=0;
+    S.lactate=Math.min(S.lactate,5);   // 再灌注成功后代谢负担开始清除 S.cprPrev=undefined; S.cprPP=undefined;
+    const r=Math.random();
+    const dest=r<0.60?'sinus':(r<0.78?'sinusB':(r<0.93?'pea':'vf'));
+    setRhythm(dest);
+    S.pulsePresent=(dest==='sinus'||dest==='sinusB');
+    if(!S.pulsePresent){ S.arrestAt=S.t; }
+    S.stun=0.35; S.stunT=25;                       // 心肌顿抑
+    beep(1000,.15,.08);
+  } else {
+    S.vfEnergy=clamp(S.vfEnergy*0.82,0,1);
+    S.vfAmp=0.20+1.15*S.vfEnergy;
+    S.stun=0.7; S.stunT=6;
+    if(S.cheat.forceShock&&!shockable){        // 娱乐模式:即使"失败"也换个心律玩
+      setRhythm(['af','svt','pvc','vt','sinusT'][irnd(0,4)]);
+      S.pulsePresent=!RHY[S.rhythmForce].asys;
+    }
+  }
+  setTimeout(()=>{D.st='idle';},1200);
+  S.defibBurst=1.2;
+}
+
+/* ============================================================
+   8. 药物库
+   ============================================================ */
+const DRUGS=[
+ {id:'epi',n:'肾上腺素',en:'Epinephrine',cls:'v',clsN:'血管活性',
+  d:'1 mg IV 快速推注。α₁+β₁:升压+增加心肌收缩,提高冠脉灌注压。首剂 1 mg,每 3–5 min 可重复。',
+  doses:['0.5 mg','1 mg','2 mg','3 mg','5 mg'],
+  fx:(amt)=>{fxAdd('contract',0.13*amt,4,150);fxAdd('svr',(-2.6+1.1*amt)*amt,3,90);
+            fxAdd('hrAdd',19*amt,6,180);fxAdd('vol',0.30*amt,5,120);}},
+ {id:'norepi',n:'去甲肾上腺素',en:'Norepinephrine',cls:'v',clsN:'血管活性',
+  d:'0.02–0.2 µg/kg/min 泵入。强效 α₁ 缩血管,MAP 显著上升,心率可反射性下降。',
+  doses:['2 µg/min','5 µg/min','10 µg/min','20 µg/min'],
+  fx:(amt)=>{fxAdd('svr',1.2*amt,8,60);fxAdd('contract',0.10*amt,8,60);fxAdd('vol',0.10*amt,10,60);}},
+ {id:'dopamine',n:'多巴胺',en:'Dopamine',cls:'v',clsN:'血管活性',
+  d:'5–10 µg/kg/min 泵入(剂量依赖性:低剂量肾血管扩张,中剂量 β₁,高剂量 α₁)。',
+  doses:['5 µg/kg/m','10 µg/kg/m','15 µg/kg/m','20 µg/kg/m'],
+  fx:(amt)=>{fxAdd('svr',0.5*amt,10,50);fxAdd('contract',0.12*amt,10,50);fxAdd('hrAdd',8*amt,10,50);}},
+ {id:'atr',n:'阿托品',en:'Atropine',cls:'n',clsN:'抗胆碱',
+  d:'0.5 mg IV(最大 3 mg)。阻断迷走神经 M₂,加快窦房结频率、加快房室传导。',
+  doses:['0.5 mg','1 mg','3 mg'],
+  fx:(amt)=>{fxAdd('hrAdd',26*amt,15,900);fxAdd('svr',-0.4*amt,20,300);}},
+ {id:'amio',n:'胺碘酮',en:'Amiodarone',cls:'a',clsN:'抗心律失常',
+  d:'负荷 150 mg 静推 10 min,继以 1 mg/min 泵入。延长动作电位,抑制多形性室速/VF;房颤转复率低。',
+  doses:['150 mg','300 mg','泵入 1 mg/m','泵入 1.5 mg/m'],
+  fx:(amt)=>{fxAdd('hrAdd',-6*amt,20,900);fxAdd('svr',-0.8*amt,20,900);fxAdd('amio',amt,20,2400);}},
+ {id:'lido',n:'利多卡因',en:'Lidocaine',cls:'a',clsN:'抗心律失常',
+  d:'1–1.5 mg/kg IV,负荷后 1–4 mg/min。室性心律失常首选之一,房颤无效。',
+  doses:['50 mg','100 mg','泵入 2 mg/m'],
+  fx:(amt)=>{fxAdd('lido',amt,10,600);}},
+ {id:'adeno',n:'腺苷',en:'Adenosine',cls:'a',clsN:'抗心律失常',
+  d:'6 mg 快速静脉推注(1–2 s 内),必要时 12 mg。窄 QRS 室上速首选;半衰期 <10 s,阻不断续给。WPW 房颤禁用。',
+  doses:['6 mg','12 mg'],
+  fx:(amt)=>{ if(S.rhythmForce==='svt'||S.rhythm==='svt') setRhythm('sinus');
+             fxAdd('block',amt,0.2,8); }},
+ {id:'vera',n:'维拉帕米',en:'Verapamil',cls:'a',clsN:'抗心律失常',
+  d:'5 mg IV 缓慢推注。房室结阻滞剂,窄 QRS 室上速有效;降低心肌收缩力,低血压/心衰禁用;WPW 房颤禁用。',
+  doses:['5 mg','10 mg'],
+  fx:(amt)=>{ if(S.rhythmForce==='svt'||S.rhythm==='svt') setRhythm('sinus');
+             fxAdd('contract',-0.32*amt,8,900);fxAdd('svr',-1.6*amt,8,900);}},
+ {id:'esmo',n:'艾司洛尔',en:'Esmolol',cls:'a',clsN:'抗心律失常',
+  d:'负荷 0.5 mg/kg,继以 50–200 µg/kg/min。极短半衰期(9 min),可滴定控制心率。',
+  doses:['20 mg','40 mg','泵入 100 µg/k/m'],
+  fx:(amt)=>{fxAdd('hrAdd',-30*amt,8,600);fxAdd('contract',-0.28*amt,10,600);fxAdd('svr',-1.4*amt,10,600);}},
+ {id:'nitro',n:'硝酸甘油',en:'Nitroglycerin',cls:'v',clsN:'血管活性',
+  d:'5–10 µg/min 泵入。前静脉扩张 → 降低前负荷与肺动脉压;后负荷略降,MAP 下降。',
+  doses:['5 µg/min','10 µg/min','20 µg/min'],
+  fx:(amt)=>{fxAdd('svr',-2.2*amt,10,300);fxAdd('vol',-1.2*amt,15,300);}},
+ {id:'furo',n:'呋塞米',en:'Furosemide',cls:'v',clsN:'利尿',
+  d:'20–40 mg IV。袢利尿剂,抑制髓袢升支 Na⁺-K⁺-2Cl⁻ 共转运,排钠排水,降前负荷。',
+  doses:['20 mg','40 mg','80 mg'],
+  fx:(amt)=>{fxAdd('vol',-9*amt,20,2400);fxAdd('svr',0.4*amt,30,2400);}},
+ {id:'ns',n:'生理盐水',en:'NS 0.9%',cls:'n',clsN:'容量',
+  d:'快速推注 500 ml。增加前负荷,改善灌注;出血性休克一线。',
+  doses:['250 ml','500 ml','1000 ml'],
+  fx:(amt)=>{fxAdd('vol',14*amt,4,1800);}},
+ {id:'morph',n:'吗啡',en:'Morphine',cls:'n',clsN:'镇痛',
+  d:'2–4 mg IV。μ 受体激动,镇痛并轻度扩张血管、抑制呼吸。',
+  doses:['2 mg','4 mg'],
+  fx:(amt)=>{fxAdd('svr',-1.1*amt,10,1800);fxAdd('vol',-0.8*amt,15,1800);fxAdd('rrAdd',-4*amt,10,1800);}},
+ {id:'bicarb',n:'碳酸氢钠',en:'NaHCO₃',cls:'n',clsN:'纠酸',
+  d:'按 1 mL/kg(1 mmol/kg)静推。代谢性酸中毒(pH<7.1)时改善 pH,增加钠负荷与 CO₂。',
+  doses:['50 ml','100 ml'],
+  fx:(amt)=>{fxAdd('lact',-0.8*amt,5,300);fxAdd('vol',2*amt,5,900);}},
+ {id:'asa',n:'阿司匹林',en:'Aspirin',cls:'n',clsN:'抗栓',
+  d:'300 mg 嚼服。不可逆 COX-1 抑制,抗血小板聚集,ACS 一线。',
+  doses:['160 mg','300 mg'],
+  fx:(amt)=>{fxAdd('asa',amt,60,100000);}},
+ {id:'heparin',n:'肝素',en:'Heparin',cls:'n',clsN:'抗栓',
+  d:'5000 U 静推后泵入。直接抑制 IIa/Xa 因子,防止血栓延伸。',
+  doses:['5000 U','泵入 1000 U/h'],
+  fx:(amt)=>{fxAdd('heparin',amt,60,100000);}},
+ {id:'propofol',n:'丙泊酚',en:'Propofol',cls:'n',clsN:'镇静',
+  d:'1–2 mg/kg 诱导,10–40 mg/h 维持。抑制循环:降张力与心输出,致低血压。',
+  doses:['100 mg','200 mg','泵入 20 mg/h'],
+  fx:(amt)=>{fxAdd('svr',-2.6*amt,12,420);fxAdd('contract',-0.24*amt,12,420);fxAdd('hrAdd',-8*amt,12,420);}},
+];
+function giveDrug(id,doseIdx){
+  const d=DRUGS.find(x=>x.id===id); if(!d)return;
+  const amt=(doseIdx+1)/d.doses.length*2;
+  d.fx(amt);
+  S.medLog=S.medLog||[]; S.medLog.unshift({n:d.n,dose:d.doses[doseIdx],t:S.t});
+  log('💊 '+d.n+' '+d.doses[doseIdx]);
+  beep(900,.05,.04);
+}
+
+/* ============================================================
+   9. 日志 / 声音 / 报警
+   ============================================================ */
+function log(m){ S.log.unshift({t:Date.now(),m}); if(S.log.length>260) S.log.pop(); renderDrawerSoon(); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
+  clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('on'),1900); }
+let AC=null,toneG=null,toneO=null;
+function audioInit(){ if(AC)return; try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC=null; } }
+function beep(f,d,g){ if(!S.sound||!AC) return; const o=AC.createOscillator(),v=AC.createGain();
+  o.type='sine'; o.frequency.value=f; v.gain.setValueAtTime(0,AC.currentTime);
+  v.gain.linearRampToValueAtTime(g||.05,AC.currentTime+.008);
+  v.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+(d||.08));
+  o.connect(v); v.connect(AC.destination); o.start(); o.stop(AC.currentTime+(d||.08)+.02); }
+function startTone(f,dur){ if(!S.sound||!AC)return; stopTone();
+  toneO=AC.createOscillator(); toneG=AC.createGain(); toneO.type='sawtooth';
+  toneO.frequency.setValueAtTime(f,AC.currentTime); toneG.gain.setValueAtTime(0,AC.currentTime);
+  toneG.gain.linearRampToValueAtTime(.035,AC.currentTime+.1); toneO.connect(toneG); toneG.connect(AC.destination); toneO.start();
+  toneTween={f,t:0,dur}; }
+let toneTween=null;
+function stopTone(){ if(toneO){ try{toneG.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+.04); toneO.stop(AC.currentTime+.05);}catch(e){} toneO=null;toneG=null; } toneTween=null; }
+function noise(dur,g,f0,f1){ if(!S.sound||!AC)return; const n=AC.createBufferSource();
+  const len=AC.sampleRate*dur, b=AC.createBuffer(1,len,AC.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+  n.buffer=b; const bp=AC.createBiquadFilter(); bp.type='lowpass'; bp.frequency.value=f0||1200;
+  const v=AC.createGain(); v.gain.value=g||.1; n.connect(bp); bp.connect(v); v.connect(AC.destination); n.start(); }
+function playShock(e){ if(!S.sound||!AC)return; const d=Math.min(.5,e/700);
+  const o=AC.createOscillator(),v=AC.createGain(); o.type='sine';
+  o.frequency.setValueAtTime(110,AC.currentTime); o.frequency.exponentialRampToValueAtTime(28,AC.currentTime+d);
+  v.gain.setValueAtTime(.5,AC.currentTime); v.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);
+  o.connect(v); v.connect(AC.destination); o.start(); o.stop(AC.currentTime+d+.02);
+  noise(.14,.35,900); }
+function qrsBeep(){ if(!S.qrsSound)return; const f=clamp(1500-S.hr*4,600,1700); beep(f,.045,.045); }
+
+/* ---------- 报警 ---------- */
+const ALARM_RULES=[
+ {k:'brady', p:'--', t:'心动过缓', hp:1, test:()=>S.hr>0&&S.hr<S.alarm.hrLo},
+ {k:'tachy', p:'--', t:'心动过速', hp:1, test:()=>S.hr>S.alarm.hrHi},
+ {k:'vf',    p:'--', t:'心室颤动', hp:2, test:()=>curRhythm().vf},
+ {k:'ag',    p:'--', t:'心室停搏', hp:2, test:()=>curRhythm().asys&&!curRhythm().org},
+ {k:'pea',   p:'--', t:'无脉电活动', hp:2, test:()=>curRhythm().org},
+ {k:'dead',  p:'--', t:'患者死亡 · 循环停止', hp:2, test:()=>S.dead},
+ {k:'asyst', p:'--', t:'无脉性停搏', hp:2, test:()=>!S.pulsePresent&&S.map<25&&!curRhythm().org&&!curRhythm().vf},
+ {k:'spo2',  p:'SpO₂', t:'血氧饱和度过低', hp:1, test:()=>S.spo2<S.alarm.spo2Lo},
+ {k:'hypot', p:'NIBP', t:'低血压', hp:1, test:()=>S.map<S.alarm.mapLo},
+ {k:'hyper', p:'NIBP', t:'高血压', hp:0, test:()=>S.sbp>S.alarm.sbpHi||S.dbp>S.alarm.dbpHi},
+ {k:'bradyp',p:'RR',  t:'呼吸过缓', hp:1, test:()=>S.rrInt>0&&S.rrInt<S.alarm.rrLo},
+ {k:'tachyp',p:'RR',  t:'呼吸过速', hp:0, test:()=>S.rrInt>S.alarm.rrHi},
+ {k:'apnea', p:'RR',  t:'呼吸暂停', hp:2, test:()=>S.apnea&&!S.mechVent&&S.rrInt===0},
+ {k:'loff',  p:'ECG', t:'导联脱落', hp:0, test:()=>Object.values(S.leadOff).some(Boolean)},
+ {k:'perf',  p:'SpO₂',t:'低灌注指数', hp:1, test:()=>S.perfIdx<1},
+];
+function checkAlarms(){
+  S.activeAlarms=[];
+  for(const a of ALARM_RULES){ const on=a.test(); S.alarms[a.k]=on; if(on) S.activeAlarms.push(a); }
+  S.activeAlarms.sort((x,y)=>y.hp-x.hp);
+}
+
+/* ============================================================
+   10. 主物理循环
+   ============================================================ */
+function setRhythm(r){
+  if(!RHY[r])return;
+  const rh=RHY[r];
+  const wasPulse=S.pulsePresent;
+  const noPulse=!!(rh.vf||rh.asys);                 // 无有效灌注
+  S.rhythmForce=r; S.rhythm=r; S.nextBeat=S.t+0.05;
+  S.tmplEnd=undefined; S.actualRR=undefined; MOTION.length=0; BEATS.length=0;
+  if(rh.vf){ S.vfEnergy=1; S.vfAmp=1.30; }
+  // 残余血压期:由有脉转为无脉时,导管惯性仍能读到几秒微弱压力
+  if(wasPulse&&noPulse&&S.pulseFade<=0) startArrestFade();
+  if(noPulse){ if(S.pulsePresent){ S.arrestAt=S.t; } S.pulsePresent=false; log('⚠ '+rh.n+' — 无脉'); }
+  else{
+    S.pulsePresent=true;
+    if(S.arrestAt>0){ S.arrestAt=-1; log('✓ 恢复自主循环 (ROSC)'); }
+  }
+  // 自然病程时间表:持续性室性心律会在若干分钟后自行恶化
+  let nx,term=0;
+  if(rh.wide&&rh.pulse){
+    nx = (r==='vt')?rnd(160,420):(r==='vtn'?rnd(18,60):rnd(22,70));
+    term = (r==='vt')?0.06:0;
+  } else if(r==='svt'){ nx=rnd(60,420); term=0.75; }
+  else if(rh.flutter){ nx=rnd(40,150); }
+  else nx=Infinity;
+  resetProg(nx,term);
+  markDirty(); renderBuf(BSEC); renderDrawerSoon();
+}
+function setRhythmFree(){ S.rhythmForce=null; }
+// 复苏:清除死亡/停搏计时器与所有残余状态
+function revive(){
+  S.dead=false; S.deathT=0; S.shockT=0;
+  S.pulseFade=0; S.cprPrev=undefined; S.cprPP=undefined;
+  S.stun=1; S.stunT=0; S.vfEnergy=1; S.vfAmp=1.35;
+  S.pulsePresent=true; S.arrestAt=-1;
+  setRhythm('sinus');
+}
+
+/* 恶性室性心律失常的实际发生率:QTc 越长越高(低钾/低镁/胺碘酮/低温) */
+function ventRisk(){
+  const rh=curRhythm();
+  // 已经处于室性心律时不再掷骰子换心律 —— 只有非室性心律才计算「新发作」的风险
+  if(rh.wide||rh.vf||rh.asys) return 0;
+  let r=clamp(S.tdpRisk||0,0,1)*0.010;                       // 窦性心律下的室速发作率(QTc 驱动)
+  if(S.elec.K<3.3) r+= (3.3-S.elec.K)*0.004;                  // 低钾 → 尖端扭转
+  if(S.elec.K>6.0) r+=(S.elec.K-6.0)*0.055;                   // 高钾 → 室颤 / 停搏
+  return clamp(r,0,0.5);
+}
+function scheduleNext(){
+  const rh=curRhythm();
+  if(rh.vf) return;
+  if(rh.asys&&!rh.org){ S.nextBeat=Infinity; return; }
+  let rr=60/Math.max(20,S.hr);
+  if(rh.complete) rr=60/Math.max(28,S.hr>0?42:34);
+  rr*=(1+N()*(rh.arr||0.02)*0.5);
+  if(rh.fibA) rr*=rnd(.55,1.55);
+  if(S.pvcPause>0){ rr*=1.8; S.pvcPause=0; }
+  rr=clamp(rr,0.18,4.5);
+  S.actualRR=rr;
+  S.nextRR=rr;
+  S.nextBeat=S.t+rr;
+  // 提前建立这一拍的心搏描述符:心电图机必须收满 0.34 s 才能显示该拍,
+  // 所以描述符要在 P 波出现之前就存在,否则 P 波会在画面上"迟到"冒出来
+  S.pendingBeat=makeBeatDesc(S.nextBeat);
+  BEATS.push({t:S.nextBeat,B:S.pendingBeat}); pruneBeats();
+  if(rh.pvc&&Math.random()<rh.pvc) S.pvcPause=1;
+  if(Math.random()<ventRisk()){          // QTc 驱动的恶性心律失常
+    const pick=Math.random();
+    if(S.elec.K>6.0&&pick<0.55){                    // 高钾:多发展为室颤/停搏
+      setRhythm(pick<0.32?'ag':'vf');
+      log('⚠ 高钾(K⁺ '+S.elec.K.toFixed(1)+')诱发室颤/停搏');
+    }else{
+      setRhythm(pick<0.45?'tdp':(pick<0.8?'vtn':'vt'));
+      log('⚠ 恶性室性心律失常发作(QTc '+(S.qtc*1000).toFixed(0)+' ms)');
+    }
+  }
+  if(rh.drop&&Math.random()>rh.conduct) S.blocked=1;
+}
+
+function beatFire(){
+  const rh=curRhythm();
+  if(rh.vf) return;
+  const B=S.pendingBeat||makeBeatDesc();
+  S.pendingBeat=null;
+  if(rh.complete){ B.pAmp=0; B.pr=0; B.qrsWidth=(S.land.rbbb>0.5?1.78:1.44); }
+  scheduleNext();                                     // 排下一拍并提前建好它的描述符
+  if(B.pOnly){ S.blocked=1; return; }
+  S.art.lastBeatT=B.t; S.rPeak=B.t;
+  if(S.pulsePresent){
+    qrsBeep();
+    if(S.qrsHist.length>40) S.qrsHist.shift();
+    S.qrsHist.push(S.t);
+  }
+  if(S.prevBeatT>0&&B.t>S.prevBeatT){ S.lastRR=B.t-S.prevBeatT; if(S.lastRR<3) S.rrHist.push(S.lastRR); }
+  S.prevBeatT=B.t; S.beatCount++;
+  if(S.pulsePresent&&S.lastRR>0.25) S.vrate=S.vrate?lerp(S.vrate,60/S.lastRR,0.25):60/S.lastRR;
+}
+// 心搏触发时 R 峰可能比当前时刻早不到一个采样,把已写过的过去样本按新心搏补算
+function backfill(t0){
+  let ai0=Math.max(0,Math.floor(t0*FS)), ai1=gIdx;
+  if(ai1-ai0<=0||ai1-ai0>BUFSZ) return;
+  for(let L2=0;L2<12;L2++){ const b=ecgBuf[L2];
+    for(let ai=ai0;ai<=ai1;ai++) b[gmod(ai)]=evalLead(ai/FS,L2); }
+}
+function pruneBeats(){ while(MOTION.length&&MOTION[0].t<S.t-BSEC-1) MOTION.shift();
+  const cut=S.t-BSEC-0.6; let i=0; while(i<BEATS.length&&BEATS[i].t<cut) i++; if(i) BEATS.splice(0,i); }
+
+// 室颤幅度随心肌能量耗竭:粗颤 → 细颤 → 趋于停搏
+/* 室扑:约 4~5 Hz 的连续正弦(300 bpm),振幅沿基线轻微摆动,轴随极缓慢旋转 */
+function vflSample(t,L2){
+  const f=4.6+0.35*Math.sin(t*1.7);
+  const ph=TAU*f*t;
+  const axis=Math.sin(t*0.42)*42;                 // 轴缓慢摆动 ±42°
+  const ld=LEADS[L2];
+  let v=Math.sin(ph)*0.92+Math.sin(ph*2+1.1)*0.16;
+  v+=hashNoise(Math.floor(t*FS),L2+31)*0.09;        // 细碎噪声
+  v*=0.86+0.14*Math.sin(t*0.9);                    // 振幅包络
+  return v*3.4*S.vfAmp*projLead(ventComp(1, 128+axis*0.4, 62+axis),ld);
+}
+function vfSample(t,L2){
+  const ph=L2*0.83;
+  let v=(Math.sin(t*46.3+ph)*.48+Math.sin(t*29.1+ph*1.7)*.34+Math.sin(t*71.7+ph*.3)*.2+Math.sin(t*13.9+ph)*.3);
+  v+=Math.sin(t*3.1+L2)*0.10;
+  return (v+hashNoise(Math.floor(t*FS),L2+7)*0.62)*S.vfAmp*(L2<3?1.25:1);
+}
+function flatSample(t,L2){    // 心室停搏:仅剩基线与极小噪声
+  return Math.sin(t*0.7+L2)*0.012+hashNoise(Math.floor(t*FS),L2+31)*0.025;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   自然病程引擎 —— 让「时间」本身成为病理驱动力
+   · 持续性室性心律 → 有效泵血衰竭 → 血压崩塌 → 恶化为更致命的心律
+   · 室颤 → 能量耗竭 → 粗颤变细颤 → 心室停搏
+   · 休克:交感代偿维持血压 → 储备耗竭 → 断崖式失代偿
+   · 无脉瞬间的残余血压期(导管惯性)
+   ═══════════════════════════════════════════════════════════ */
+function startArrestFade(){
+  if(!S.pulsePresent||S.pulseFade>0) return;
+  S.pulseFade=rnd(3.5,7.5); S.fadeT0=S.pulseFade;
+  S.fadeMAP=S.map; S.fadePP=S.pp; S.fadeHR=S.vrate||S.hr||70;
+  log('⚠ 无脉 — 残余血压期 '+S.pulseFade.toFixed(1)+' s');
+}
+function progression(dt){
+  const rh=curRhythm();
+  const sd=dt*(S.prog.speed===undefined?1:S.prog.speed);   // 病程推进速度
+  /* 长时间深度休克 → 循环停止。必须放在所有心律分支之前,
+     否则 VF / 停搏分支的提前 return 会把它挡掉 */
+  if(S.dead) return;
+  if(S.prog.on&&S.map<9&&S.gcs<=3&&S.pulseFade<=0) S.deathT+=sd; else S.deathT=Math.max(0,S.deathT-sd*2);
+  if(S.deathT>90){
+    S.dead=true; S.pulsePresent=false; S.pulseFade=0;
+    // 只把「有脉」心律转成停搏。室颤/室扑/无脉电活动保持原样,
+    // 它们有自己的能量耗竭通路,直接变 ag 会变成不可除颤的死局
+    if(!rh.asys&&!rh.vf&&!rh.flutterV&&!rh.org) setRhythm('ag');
+    log('✝ 循环停止 — 患者死亡(不可逆休克)'); renderDrawerSoon();
+    return;
+  }
+  // 意识状态:脑灌注取决于 MAP 与混合静脉氧(任何心律下都要更新)
+  S.gcs = (S.pulsePresent&&S.map>55&&S.svo2>45) ? 15
+         : (S.map>42&&S.svo2>32) ? 10+Math.floor(clamp((S.map-42)/13,0,1)*3)
+         : (S.map>28) ? 6+Math.floor(clamp((S.svo2-20)/12,0,1)*3) : 3;
+  if(!S.prog.on){ S.prog.t=0; S.prog.comp=1; return; }
+  /* ── ① 室颤:心肌能量耗竭。粗颤 → 细颤 → 停搏 */
+  if(rh.vf){
+    S.prog.t+=sd;
+    S.vfEnergy=clamp(S.vfEnergy*Math.exp(-dt/(S.cpr.active?300:150)*S.prog.speed),0,1);
+    S.vfAmp=0.20+1.15*S.vfEnergy;
+    if(S.vfEnergy<0.05&&S.prog.t>20)
+      setRhythm('ag'), log('室颤能量耗竭 → 心室停搏 · 停搏 '+(S.arrestAt<0?0:(S.t-S.arrestAt).toFixed(0))+' s');
+    return;
+  }
+  /* ── ①b 室扑:短暂维持后必然转为室颤(无脉 → 停搏) */
+  if(rh.flutterV){
+    S.prog.t+=sd;
+    S.vfAmp=1.05;                       // 室扑是组织化的快速激动,振幅接近 VT 而非 VF
+    if(S.t>S.prog.next){
+      S.vfEnergy=Math.max(S.vfEnergy,0.34);
+      setRhythm('vf'); startArrestFade();
+      log('心室扑动 → 心室颤动 · 停搏 '+(S.arrestAt<0?0:(S.t-S.arrestAt).toFixed(0))+' s');
+    }
+    return;
+  }
+  /* ── ② 无脉电活动持续不退 → 停搏 */
+  if(rh.asys){
+    if(rh.org){ S.prog.t+=sd;
+      if(S.prog.t>50&&Math.random()<dt*0.05) setRhythm('ag'), log('无脉电活动持续 → 心室停搏'); }
+    return;
+  }
+  /* ── ③ 有脉的室性心律:有效泵血随时间衰竭 */
+  if(rh.wide&&rh.pulse){
+    S.prog.t+=sd;
+    S.prog.vtEff=clamp(S.prog.vtEff-dt*0.0027*S.prog.speed,0.07,0.85);   // 持续下滑,不回弹
+    // 血压越低恶化越快:重度低灌注会把下一次恶化提前
+    if(fxVal('amio')>0.05&&Math.random()<0.02*clamp(fxVal('amio'),0,1)){
+      setRhythm('sinus'); log('胺碘酮使持续性室速终止'); return; }
+    const due=S.t > (S.prog.next - Math.max(0,38-S.map)*2.5);
+    if(due){
+      if(Math.random()<S.prog.selfTerm){ setRhythm('sinus'); log('室速自行终止'); return; }
+      const keep=Math.min(S.prog.vtEff,0.30);        // 恶化后不会重新恢复灌注
+      const rx=1+2.5*clamp(fxVal('amio'),0,1)+1.4*clamp(fxVal('lido'),0,1);
+      /* 自然病程:单形性/多形性 VT → 尖端扭转 VT → 室扑 → 室颤 → 停搏
+         (室性心律越来越「不像心电图」,最终失去可辨认的组织化激动) */
+      const nxt=(rh===RHY.vt)?(Math.random()<0.42?'tdp':'vtn')
+                :(rh===RHY.vtn)?(Math.random()<0.5?'tdp':'vfl')
+                :(rh===RHY.tdp)?'vfl'
+                :'vfl';
+      const wait=((nxt==='tdp')?rnd(16,46):(nxt==='vfl'?rnd(10,26):rnd(20,54)))*rx;
+      if(nxt==='vfl'){
+        // 室扑通常先失去机械效应 → 转 VF 时走无脉衰减路径
+        S.prog.vtEff=Math.min(S.prog.vtEff,0.12); setRhythm('vfl'); S.prog.next=S.t+wait;
+        startArrestFade();
+        log('持续性 '+rh.n+' → 心室扑动(失去组织化激动)');
+      }else{
+        setRhythm(nxt); S.prog.vtEff=keep; S.prog.next=S.t+wait;
+        log('持续性 '+rh.n+' → '+RHY[nxt].n+'(自然病程)');
+      }
+    }
+    return;
+  }
+  /* ── ④ 其他心律的自然转归 */
+  if(rh.flutter){
+    S.prog.t+=sd; if(S.t>S.prog.next){ setRhythm(Math.random()<0.7?'af':'sinus'); log('心房扑动自然转归'); }
+    return;
+  }
+  if(rh.retro){
+    S.prog.t+=sd;
+    if(S.t>S.prog.next&&Math.random()<S.prog.selfTerm){ setRhythm('sinus'); log('室上速自行终止'); }
+    return;
+  }
+  if(S.prog.t>0){ S.prog.t=0; S.prog.vtEff=0.85; S.prog.next=Infinity; S.prog.vtHeld=0; }
+  /* ── ④b 深度休克下有脉室速必然失去有效输出 */
+  if(rh.wide&&rh.pulse&&S.map<16) S.shockT+=sd; else S.shockT=Math.max(0,S.shockT-sd*2);
+  if(S.shockT>45){
+    setRhythm('vf'); log('深度休克,室性心律失去有效输出 → 心室颤动');
+    return;
+  }
+
+  /* ── ⑤ 交感代偿储备:血压越低,代偿被调用越狠,储备被消耗越快 */
+  if(S.pulsePresent){
+    if(S.map<66) S.prog.compT+=dt*clamp((66-S.map)/26,0.25,2.2)*S.prog.speed;
+    else         S.prog.compT=Math.max(0,S.prog.compT-dt*0.10);
+    S.prog.comp=clamp(1-S.prog.compT/300,0.12,1);
+  } else S.prog.comp=0.12;
+}
+/* 低灌注时脉搏血氧探头测不准 */
+function spo2Display(){
+  if(S.dead) return {v:0, ok:false, dead:true};
+  const pi=S.perfIdx||0;
+  // 残余血压期仍有脉搏,只要灌注指数够高就还能读到数
+  if(pi<0.55) return {v:null, ok:false, weak:true};          // 探头锁不上信号
+  if(!S.pulsePresent&&S.pulseFade<=0) return {v:null, ok:false, weak:true};
+  if(pi<1.0)  return {v:Math.round(clamp(S.sao2-rnd(1,5),70,100)), ok:true, wob:true};
+  return {v:Math.round(S.spo2Lock||S.sao2), ok:true};
+}
+/* 动脉血气:把连续变量折算成一张试纸读数(加预分析误差) */
+function drawABG(){
+  const hco3=clamp(24-(S.lactate>1?(S.lactate-1)*1.6:0),6,30);
+  S.abg={
+    ph:+(S.ph+rnd(-0.012,0.012)).toFixed(2),
+    pco2:Math.round(clamp(S.paco2+rnd(-1.6,1.6),12,150)),
+    po2:Math.round(clamp(S.pao2+rnd(-2.5,2.5),20,120)),
+    hco3:Math.round(hco3+rnd(-0.6,0.6)),
+    be:Math.round((hco3-24.4)+rnd(-0.8,0.8)),
+    lac:+(S.lactate+rnd(-0.06,0.06)).toFixed(1),
+    sao2:Math.round(clamp(S.sao2+rnd(-0.4,0.4),50,100)),
+    hb:S.hb, hct:Math.round(S.hb/3.3),   // Hct ≈ Hb(g/L)/3.3
+  };
+  return S.abg;
+}
+// 镇静深度 RASS(propofol 等按各自效应折算)
+function sedationRass(){
+  return Math.round(clamp(-1.5*clamp(fxVal('hrAdd'),-3,0)*0.4
+                          -2.2*clamp(fxVal('svr'),-6,0)*0.25
+                          -3.0*(fxVal('pct')||0), -5, 4));
+}
+function resetProg(next,term){
+  S.prog.t=0; S.prog.vtEff=0.85;
+  // comp / compT 不在这里重置 —— 交感代偿储备是全身状态,换心律不清零
+  S.prog.next=(next===undefined)?Infinity:S.t+next;
+  S.prog.selfTerm=term||0;
+}
+
+function physStep(dt){
+  S.t+=dt; gIdx++;
+  if(S.stunT>0){ S.stunT-=dt; S.stun=lerp(S.stun,1,dt*0.35); } else S.stun=1;
+  // 体动事件:默认每 ~20 s 一次且只影响事件本身那段;CPR 每次按压算一次事件
+  const mAmt=(S.motionAmt===undefined?0.15:S.motionAmt);
+  S.motion=motionAt(S.t);
+  // 低温自动出现寒战肌电
+  const chr=clamp((36.4-S.temp)/1.8,0,1);
+  if(chr>S.tremor) S.tremor=chr;
+  if(mAmt>0&&Math.random()<dt*0.05*mAmt) triggerMotion(rnd(0.5,1.5));   // 默认约每 67 s 一次
+  if(S.cpr.active&&Math.random()<dt*(S.cpr.rate/60)*0.9) triggerMotion(rnd(0.5,0.9),rnd(0.25,0.5));
+  S.rrInt=clamp(S.base.rr+fxVal('rrAdd'),0,50);
+  S.apnea=(S.rrInt<=0&&!S.mechVent);
+  progression(dt);
+  hemodynamics(dt);
+  gasExchange(dt);
+  // 心律触发
+  if(!curRhythm().vf&&S.nextBeat<=S.t) beatFire();
+  // CPR 胸壁按压伪差:属于"生理性运动",写进缓冲(通道无关地对所有导联同相叠加)
+  let cpr=0;
+  if(S.cpr.active){
+    const ph=(S.t*(S.cpr.rate/60))%1;
+    cpr=Math.exp(-Math.pow((ph-0.5)/0.16,2))*0.95;
+    if(ph<0.5&&S.t-S.cpr.lastT>60/S.cpr.rate*0.45){ S.cpr.lastT=S.t; if(Math.random()<.25) noise(.05,.05,600); }
+  }
+  // 心电:只写纯净形态(噪声与伪差在渲染时叠加,绝不写进缓冲区)
+  const asys=curRhythm().asys&&!curRhythm().org;
+  for(let L2=0;L2<12;L2++){
+    let v=asys?flatSample(S.t,L2):evalLead(S.t,L2);
+    if(cpr>0) v+=cpr*Math.cos(L2*0.4);
+    ecgBuf[L2][gmod(gIdx)]=v;
+  }
+  waveforms(dt);
+  nibpStep(dt);
+  const D=S.defib;
+  if(D.st==='charging'){ D.ch=clamp(D.ch+dt/(0.5+D.e*0.007),0,1);
+    if(toneO) toneO.frequency.value=140+(D.e/360)*420+D.ch*90;
+    if(D.ch>=1){ D.ch=1; D.st='ready'; D.charged=true; beep(1800,.1,.07); } }
+  if(D.st==='ready'&&!S.cheat.infEnergy) D.ch=Math.max(0,D.ch-dt*0.010);
+  if(D.st==='ready'&&S.defibBurst>0){ S.defibBurst-=dt; if(S.defibBurst<=0) D.st='idle'; }
+  /* 心率变异性:正常窦性心律才有意义 */
+  if(S.rrHist.length>12){
+    const a=S.rrHist.slice(-40), m=a.reduce((x,y)=>x+y,0)/a.length;
+    let sd=0,ms=0;
+    for(let i=0;i<a.length;i++){ sd+=(a[i]-m)*(a[i]-m);
+      if(i){ const d=a[i]-a[i-1]; ms+=d*d; } }
+    S.hrv.sdnn=Math.sqrt(sd/(a.length-1))*1000;
+    S.hrv.rmssd=Math.sqrt(ms/(a.length-1))*1000;
+    S.hrv.rr=+(m*1000).toFixed(0);
+  }else{ S.hrv.sdnn*=0.98; S.hrv.rmssd*=0.98; S.hrv.rr=Math.round(60/Math.max(20,S.hr)*1000); }
+  /* QTc 越长,尖端扭转型室速风险越高(低钾/低镁/胺碘酮都会推高) */
+  const rrq=60/Math.max(25,S.hr||70);
+  S.qtc=(S.qtInt/Math.sqrt(rrq));
+  S.tdpRisk=clamp((S.qtc-0.42)*2.6
+                + (3.6-S.elec.K)*0.30 + (1.6-S.elec.Mg)*0.26
+                + fxVal('amio')*0.45, 0, 1);
+  S.perfIdx=clamp((S.pp-6)/40*(S.spo2/100)*3,0,4);
+  pruneDrugs();
+  S._acc=(S._acc||0)+dt;
+  if(S._acc>0.25){ S._acc=0; checkAlarms(); }
+}
+
+/* ============================================================
+   11. 渲染
+   ============================================================ */
+const SCREEN_MM=88;
+const CH={
+ PLTH:{n:'PLTH',l:'脉搏波',c:'#39d7f2',min:0,max:1.6},
+ ART :{n:'ART', l:'动脉压',c:'#ff5b5b',unit:'mmHg'},
+ RESP:{n:'RESP',l:'呼吸',  c:'#ffd23f',min:-1.6,max:1.6},
+ CO2 :{n:'CO2', l:'EtCO₂', c:'#b98cff',unit:'mmHg'},
+};
+function leadOffFor(L2){
+  const n=LEADS[L2].n, o=S.leadOff;
+  if(n==='V1'&&o.V1)return 1; if(n==='V2'&&o.V2)return 1; if(n==='V3'&&o.V3)return 1;
+  if(n==='V4'&&o.V4)return 1; if(n==='V5'&&o.V5)return 1; if(n==='V6'&&o.V6)return 1;
+  const limb = (n==='I'||n==='II'||n==='III'||n==='aVR'||n==='aVL'||n==='aVF');
+  if(limb){
+    if(o.RA&&(n==='I'||n==='II'||n==='aVR')) return o.LA?2:1;
+    if(o.LA&&(n==='I'||n==='III'||n==='aVL')) return 2;
+    if(o.LL&&(n==='II'||n==='III'||n==='aVF')) return 1;
+    if(o.RL) return 2;
+  }
+  return 0;
+}
+/* ---- 以下函数只在「画」的时候调用,不参与任何缓冲区写入 ---- */
+function drawWander(i,L2){                       // 基线漂移 0.2~1.3 Hz
+  const w=S.wave.wander, t=i/FS;
+  return w*0.075*Math.sin(t*0.62+L2*0.3)+w*0.030*Math.sin(t*1.31+L2);
+}
+function drawNoise(i,L2){                        // 肌电 + 白噪声
+  const e=S.wave.noise*(1+ (S.tremor||0)*2.2);
+  let n=e*0.016*hashNoise(i,L2*13+1);
+  n+=e*0.011*hashNoise(i>>1,L2+101);             // 稍低频成分
+  n+=e*0.009*hashNoise(i>>3,L2+211);
+  const m=S.mains||0;                            // 50 Hz 工频干扰
+  if(m>0) n+=m*0.045*Math.sin(TAU*50*(i/FS)+L2)+m*0.018*Math.sin(TAU*150*(i/FS));
+  return n;
+}
+/* 体动伪差是「瞬态事件」,不是全局包络:
+   每次动作只在它发生的那一小段时间里造成抖动,其余时间完全不受影响。
+   事件表按时间查包络 → 完全确定性,而且不会牵动整条波形。 */
+const MOTION=[];
+function triggerMotion(amp,dur){ MOTION.push({t:S.t,amp:amp,dur:dur||rnd(0.45,1.6)});
+  if(MOTION.length>48) MOTION.shift(); }
+function motionAt(t){
+  let m=0;
+  for(let i=0;i<MOTION.length;i++){ const e=MOTION[i], d=t-e.t;
+    if(d<0||d>e.dur) continue;
+    m+=e.amp*Math.sin(Math.PI*(d/e.dur))**2;      // 两端平滑归零
+  }
+  return m;
+}
+function drawMotion(i,L2){                         // 体动伪差(局部瞬态)
+  const t=i/FS;
+  const m=motionAt(t);
+  if(m<0.015) return 0;
+  const g=0.55*(S.motionAmt===undefined?0.30:S.motionAmt);
+  return m*g*(0.52*Math.sin(t*11.3+L2*0.6)
+            + 0.28*Math.sin(t*2.1+L2*0.2)
+            + 0.20*Math.sin(t*23.7+L2*1.3));
+}
+function drawLeadOff(i,L2){                      // 导联脱落
+  const o=leadOffFor(L2); if(!o) return 0;
+  const t=i/FS;
+  if(o===1) return Math.sin(t*TAU*0.3)*2.2+hashNoise(i,L2)*0.35+(L2===3?8*Math.sin(t*1.7):0);
+  if(o===2) return hashNoise(i,L2+3)*0.7+((t%1)<0.10?2.0:0);
+  return hashNoise(i,L2+5)*0.9+Math.sin(t*37)*0.3;
+}
+function chColor(k){
+  if(S.view.traceColor==='green')return '#39ff88';
+  if(S.view.traceColor==='white')return '#e8f0f6';
+  if(S.view.traceColor==='yellow')return '#ffd23f';
+  if(k in CH)return CH[k].c;
+  return LEADS[LI[k]].c;
+}
+function buildRows(){
+  const wrap=document.getElementById('waveWrap');
+  wrap.innerHTML='';
+  const keys=S.view.leads;
+  keys.filter(k=>(k!=='ART')||S.artLine).forEach(k=>{
+    const d=document.createElement('div'); d.className='row';
+    d.style.height=S.view.rows+'px';
+    const lab=k in CH?CH[k].l:k;
+    d.innerHTML='<canvas></canvas><div class="lb" style="color:'+chColor(k)+'">'+lab+'</div>'+
+      '<div class="rt"></div>'+
+      (S.view.cal&&k in CH?'':'<div class="cal" style="color:'+chColor(k)+'"><svg width="16" height="12" viewBox="0 0 16 12"><path d="M1 11 L1 2 L5 2 L5 11 L9 11 L9 2 L13 2 L13 11" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div>');
+    wrap.appendChild(d);
+    d.dataset.ch=k;
+    fitCanvas(d.querySelector('canvas'));
+  });
+}
+function fitCanvas(c){
+  const r=c.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
+  c.width=Math.max(1,Math.round(r.width*dpr)); c.height=Math.max(1,Math.round(r.height*dpr));
+}
+/* ═══════════════════════════════════════════════════════════
+   监护仪扫描显示(raster sweep),不是滚动
+   画布右侧保留上一帧内容 → 只在扫描头前方擦除并推进,
+   扫描头到达右端后整体清屏、回到左端继续从左往右画。
+   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   监护仪扫描显示(raster sweep)
+   语义:扫描头从左端出发向右推进,头左边是已画出的波形,右边尚未扫描。
+   实现:整屏每帧重画(按扫描映射)—— 不用增量 clearRect。
+         因为辉光(shadowBlur)总是落在扫描头右侧,增量擦除会把
+         上一帧的辉光反复抹掉,波形就变成又细又暗的断续点。
+   ═══════════════════════════════════════════════════════════ */
+let SWEEP={p:0,t0:0,init:false,win:3.5};
+function sweepAdvance(dtR){
+  const winSec=SCREEN_MM/S.view.speed/(S.view.scanSpeed||1);
+  const lag=0.15;                       // 扫描头略微落后当前时刻,保证有数据
+  if(!SWEEP.init){ SWEEP.t0=S.t-lag; SWEEP.init=true; }
+  // 扫描头时刻 = 现在 − lag;位置由它在本轮时间窗中的比例决定
+  let p=(S.t-lag-SWEEP.t0)/winSec;
+  if(p>=1){ const n=Math.floor(p); SWEEP.t0+=n*winSec; p-=n; }   // 到右端 → 跳回左边
+  if(p<0){ SWEEP.t0=S.t-lag; p=0; }
+  SWEEP.p=p; SWEEP.win=winSec;
+  return p;
+}
+function drawRow(d){
+  const k=d.dataset.ch, c=d.querySelector('canvas'), ctx=c.getContext('2d');
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=c.width/dpr, H=c.height/dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  const isECG=(k in CH)===false;
+  const L2=isECG?LI[k]:-1;
+  const buf = isECG?ecgBuf[L2]:(k==='PLTH'?bufPleth:k==='ART'?bufArt:k==='RESP'?bufResp:bufCO2);
+  const color=chColor(k);
+
+  const winSec=SCREEN_MM/S.view.speed/(S.view.scanSpeed||1);
+  const p=SWEEP.p, xH=p*W;                 // 扫描头位置
+  const tOld=SWEEP.t0, tHead=SWEEP.t0+p*winSec;   // 屏左=本轮起点(固定),头=当前扫描位置
+
+  // ---- 量程(每次按当前状态重算) ----
+  const isBP=(k==='ART'), isCO2=(k==='CO2'), isPl=(k==='PLTH'), isRp=(k==='RESP');
+  let pv=1,capV=0,minV=0,base=H*0.54;
+  if(isBP){ pv=Math.max(40,Math.ceil((Math.max(S.sbp,S.pp*1.6)+30)/40)*40); }
+  else if(isCO2){ pv=Math.max(30,Math.ceil(((S.etco2||40)+12)/20)*20); }
+  else if(isPl){ pv=1.5; minV=0; }
+  else if(isRp){ pv=2.0; minV=-1.0; }
+  else { const pxPerMm=W/SCREEN_MM; capV=Math.min(S.view.gain*pxPerMm,H*0.42); S.effGain=capV/pxPerMm; }
+  const yOf=(v)=>{
+    if(isECG) return base-v*capV;
+    if(isBP||isCO2) return H*0.95-(v/pv)*(H*0.86);
+    if(isPl) return H*0.95-((v-minV)/pv)*(H*0.86);
+    return H*0.50-((v-minV)/pv)*(H*0.86);
+  };
+  // 伪差只在绘制时叠加,缓冲区里是干净形态
+  const artAt=(i)=>{
+    if(isECG) return drawWander(i,L2)+drawNoise(i,L2)+drawMotion(i,L2)+drawLeadOff(i,L2);
+    if(isBP){ const mo=motionAt(i/FS); return 0.35*hashNoise(i,7)+(mo>0.15?mo*4.0*Math.sin(i/FS*6.2):0); }
+    if(isPl){ const mo=motionAt(i/FS); return (0.012+mo*0.30)*hashNoise(i>>1,17)+mo*0.22*Math.sin(i/FS*7.7); }
+    if(isRp) return 0.020*hashNoise(i,23);
+    return 0.22*hashNoise(i,29);
+  };
+
+  // ---- 整屏重画 ----
+  ctx.clearRect(0,0,W,H);
+  if(xH>0.5){
+    const N=Math.max(8,Math.round(xH*2.2));   // 每像素约 2.2 个采样,足够细
+    ctx.strokeStyle=color; ctx.lineWidth=1.4; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.shadowBlur=4; ctx.shadowColor=color;
+    ctx.beginPath();
+    for(let j=0;j<=N;j++){
+      const t=tOld+(tHead-tOld)*(j/N);
+      const i=Math.round(t*FS);
+      let v=buf[((i%BUFSZ)+BUFSZ)%BUFSZ];
+      v+=artAt(i);
+      const x=(j/N)*xH;
+      const y=yOf(v);
+      if(j===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke(); ctx.shadowBlur=0;
+  }
+  const nsg=(isECG?'E'+S.view.gain:'C'+k)+'@'+S.view.speed+'@'+S.view.scanSpeed;
+  if(nsg!==d._sig){ SWEEP.init=false; }        // 参数变了 → 重新起一轮扫描
+  d._sig=nsg;
+  d._pPrev=p;
+  const rt=d.querySelector('.rt');
+  if(rt) rt.textContent = isECG?((S.effGain||S.view.gain).toFixed(1)+' mm/mV')
+                     : (k==='ART'?Math.round(S.sbp)+'/'+Math.round(S.dbp):'');
+}
+function drawAll(){
+  document.querySelectorAll('#waveWrap .row').forEach(d=>{ if(d.offsetParent) drawRow(d); });
+  drawTiles(); drawAlarmBar();
+}
+/* ---------- 数字区 ---------- */
+const TILES=[
+ {k:'hr', cls:'t-hr', label:'HR', unit:'bpm', sub:'ECG',
+   get:()=>S.hr>0?Math.round(S.hr):'---', sub2:()=>rhyName()},
+ {k:'spo2',cls:'t-sp',label:'SpO₂',unit:'%', sub:'脉搏波', small:true,
+   get:()=>{ const d=spo2Display(); return (d.v===null||d.v<=0)?'---':Math.round(d.v); },
+   sub2:()=>{ const d=spo2Display(); return (d.dead?'✝ ':(d.ok?'':'⚠无信号 '))+'PI '+(S.perfIdx||0).toFixed(1)+' · SvO₂ '+S.svo2.toFixed(0)+'%'; }},
+ {k:'art',cls:'t-bp',label:'ART 有创',unit:'mmHg', sub:'桡动脉', small:true,
+   get:()=>{
+     if(!S.artLine)return '--/--';
+     if(S.dead)return '0/0';
+     return Math.round(S.sbp)+'/'+Math.round(S.dbp);},
+   sub2:()=>{ if(!S.artLine)return '(未置管)';
+     const x=('MAP '+Math.round(S.map)+' · PP '+Math.round(S.pp)+' · CO '+(S.co||0).toFixed(1));
+     return (!S.pulsePresent&&S.pulseFade<=0)?(x+' · 无脉搏'):x; },
+   lv:()=>!S.artLine?0:(S.map<S.alarm.mapLo?1:(S.map<45?2:(S.map>110?1:0)))},
+ {k:'nibp',cls:'t-bp',label:'NIBP 无创',unit:'mmHg', sub:'袖带', small:true,
+   get:()=>{
+     if(S.nibp.st!=='idle')return '•••';
+     if(S.nibpRes&&Date.now()-S.nibpRes.t<300000) return (S.nibpRes.sbp+'/'+S.nibpRes.dbp);
+     return '--/--';},
+   sub2:()=>{
+     if(S.nibp.st!=='idle')return '袖带 '+Math.round(S.nibp.cuff)+' mmHg '+({inflate:'↑',deflate:'↓'}[S.nibp.st]||'');
+     if(S.nibpRes)return Math.round((Date.now()-S.nibpRes.t)/1000)+' s 前 · MAP '+S.nibpRes.map;
+     return '待测量 · 点底部「测压」';},
+   lv:()=>{ if(!S.nibpRes||Date.now()-S.nibpRes.t>300000)return 0;
+     const m=S.nibpRes.map; return m<S.alarm.mapLo?1:(m<45?2:0);}},
+ {k:'rr', cls:'t-rr',label:'RR', unit:'/min', sub:'呼吸', small:true,
+   get:()=>S.rrInt>0?Math.round(S.rrInt):'---',
+   sub2:()=>'EtCO₂ '+Math.round(S.etco2||0)+' · PaCO₂ '+Math.round(S.paco2)},
+ {k:'t',  cls:'t-tp',label:'TEMP',unit:'℃', sub:'酸碱/代谢', small:true,
+   get:()=>S.temp.toFixed(1),
+   sub2:()=>'pH '+S.ph.toFixed(2)+' · Lac '+S.lactate.toFixed(1)},
+];
+function buildTiles(){
+  const el=document.getElementById('tiles'); el.innerHTML='';
+  TILES.forEach(t=>{ const d=document.createElement('div'); d.className='tile '+t.cls+(t.small?' small':''); d.id='tile-'+t.k;
+    d.innerHTML='<div class="k"><span>'+t.label+'</span><span>'+t.sub+'</span></div>'+
+      '<div><span class="v">--</span><span class="u">'+t.unit+'</span></div><div class="sub"></div>';
+    el.appendChild(d); });
+}
+let tileHist={};
+function drawTiles(){
+  TILES.forEach(t=>{
+    const d=document.getElementById('tile-'+t.k); if(!d)return;
+    d.querySelector('.v').textContent=t.get();
+    d.querySelector('.sub').textContent=t.sub2();
+    let lv=0;
+    if(t.k==='hr'){ if(S.hr>0&&S.hr<S.alarm.hrLo)lv=1; if(S.hr>S.alarm.hrHi)lv=1; if(S.hr<40)lv=2; }
+    if(t.k==='spo2'){ if(S.spo2<S.alarm.spo2Lo)lv=1; if(S.spo2<85)lv=2; }
+    if(t.k==='rr'){ if(S.rrInt>0&&S.rrInt<S.alarm.rrLo)lv=1; if(S.rrInt>S.alarm.rrHi)lv=1; }
+    if(t.k==='t'){ if(S.ph<7.25||S.lactate>4)lv=1; }
+    if(t.lv) lv=t.lv();
+    d.classList.toggle('alarmL',lv===1); d.classList.toggle('alarmH',lv===2);
+  });
+}
+function drawAlarmBar(){
+  const b=document.getElementById('alarmBar');
+  const A=S.activeAlarms||[];
+  const on=A.filter(a=>!(S.silenced&&Date.now()<S.silenceUntil));
+  if(!on.length){ b.className='alarmbar hide'; b.innerHTML=''; return; }
+  const top=on[0];
+  b.className='alarmbar '+({2:'a-hp',1:'a-mp',0:'a-lp'}[top.hp]);
+  b.innerHTML='<span>⚠</span><span>'+top.p+' '+top.t+'</span>'+
+    (on.length>1?'<span style="opacity:.7">+'+(on.length-1)+'</span>':'')+
+    '<span class="tsc">'+(S.silenced?'静音中':'按消音键')+'</span>';
+}
+
+/* ============================================================
+   12. 标准 12 导联记录页
+   ============================================================ */
+let L12MODE={mm:4,compact:false};
+function draw12(){
+  const cv=document.getElementById('c12');
+  const maxW=Math.min(1400,Math.max(760,document.querySelector('.pg12 .pb').clientWidth-16));
+  const PX=L12MODE.compact?maxW/262:4;
+  const colSec=2.5*S.view.speed/25;
+  const totalW=Math.round(262*PX), totalH=Math.round(196*PX);
+  cv.style.width=totalW+'px'; cv.style.height=totalH+'px';
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(totalW*dpr); cv.height=Math.round(totalH*dpr);
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#0d0f12'; ctx.fillRect(0,0,totalW,totalH);
+  // 网格
+  const mm=2.5, big=5;
+  ctx.lineWidth=0.5;
+  for(let x=0;x<=totalW;x+=PX*mm){ ctx.strokeStyle='rgba(190,60,60,.18)'; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,totalH); ctx.stroke(); }
+  for(let y=0;y<=totalH;y+=PX*mm){ ctx.strokeStyle='rgba(190,60,60,.18)'; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(totalW,y); ctx.stroke(); }
+  ctx.lineWidth=0.9;
+  for(let x=0;x<=totalW;x+=PX*big){ ctx.strokeStyle='rgba(215,80,80,.42)'; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,totalH); ctx.stroke(); }
+  for(let y=0;y<=totalH;y+=PX*big){ ctx.strokeStyle='rgba(215,80,80,.42)'; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(totalW,y); ctx.stroke(); }
+  const gain=S.view.gain, pxPerMv=PX*gain;
+  const rowH=33*PX, top0=8*PX, gap=6*PX;
+  const colW=62.5*PX, x0=12*PX;
+  // 3×4
+  L12.forEach((row,r)=>{
+    const yb=top0+r*(rowH+gap)+rowH*0.62;
+    row.forEach((nm,c)=>{
+      const buf=ecgBuf[LI[nm]];
+      const t1=S.t, t0=t1-colSec;
+      ctx.strokeStyle=LEADS[LI[nm]].c; ctx.lineWidth=1.25; ctx.shadowBlur=0;
+      ctx.beginPath(); let first=true;
+      const li=LI[nm];
+      for(let x=0;x<=colW;x++){
+        const t=t0+(x/colW)*colSec;
+        const ii=Math.round(t*FS);
+        const v=samp(buf,t)+drawWander(ii,li)+drawNoise(ii,li)+drawLeadOff(ii,li);
+        const yy=yb-clamp(v,-2.2,2.2)*pxPerMv;
+        if(first){ctx.moveTo(x0+c*colW+x,yy);first=false;} else ctx.lineTo(x0+c*colW+x,yy);
+      }
+      ctx.stroke();
+      ctx.fillStyle=LEADS[LI[nm]].c; ctx.font='600 '+(3.4*PX)+'px sans-serif'; ctx.textAlign='left';
+      ctx.fillText(nm,x0+c*colW+2*PX,yb-rowH*0.5);
+      // 定标
+      ctx.strokeStyle=LEADS[LI[nm]].c; ctx.beginPath();
+      const bx=x0+c*colW, by=yb+rowH*0.2;
+      ctx.moveTo(bx,by);ctx.lineTo(bx,by-pxPerMv);ctx.lineTo(bx+2*PX,by-pxPerMv);ctx.lineTo(bx+2*PX,by);ctx.stroke();
+    });
+  });
+  // 底部 II 导联长条
+  const yb4=top0+3*(rowH+gap)+rowH*0.62;
+  const w4=250*PX, sec4=w4/PX/S.view.speed*25;
+  ctx.strokeStyle='#39ff88'; ctx.lineWidth=1.3; ctx.beginPath(); let f2=true;
+  for(let x=0;x<=w4;x++){ const v=samp(ecgBuf[LI['II']],S.t-sec4+x/PX/S.view.speed*25);
+    const yy=yb4-clamp(v,-2.2,2.2)*pxPerMv; if(f2){ctx.moveTo(x0+x,yy);f2=false;}else ctx.lineTo(x0+x,yy); }
+  ctx.stroke();
+  ctx.fillStyle='#39ff88'; ctx.font='600 '+(3.4*PX)+'px sans-serif';
+  ctx.fillText('II',x0+2*PX,yb4-rowH*0.5);
+  // 页脚
+  ctx.fillStyle='#5a6673'; ctx.font=(3.0*PX)+'px monospace'; ctx.textAlign='left';
+  ctx.fillText(S.view.speed+' mm/s   '+gain+' mm/mV   1mV '+new Date().toLocaleTimeString('zh-CN',{hour12:false}),x0,totalH-3*PX);
+  ctx.textAlign='right'; ctx.fillStyle='#3d4a58';
+  ctx.fillText('SIMULATED — 非真实患者数据',totalW-x0,totalH-3*PX); ctx.textAlign='left';
+  measure12();
+}
+function measure12(){
+  const el=document.getElementById('meas12');
+  const buf=ecgBuf[LI['II']];
+  // 心率
+  let hr=null; if(S.rrHist.length>=3){ const a=[...S.rrHist].sort((x,y)=>x-y); hr=Math.round(60/a[Math.floor(a.length/2)]); }
+  if(!hr&&S.hr>0)hr=Math.round(S.hr);
+  // 电轴:取最近一个心搏的净 QRS 面积(I / aVF)
+  const tR=S.rPeak||(S.t-0.4);
+  const win0=tR-0.12, win1=tR+0.16;
+  let aI=0,aVF=0,aII=0;
+  for(let i=Math.floor(win0*FS);i<=Math.floor(win1*FS);i++){
+    aI+=sampIdx(ecgBuf[LI['I']],i); aII+=sampIdx(ecgBuf[LI['II']],i); aVF+=sampIdx(ecgBuf[LI['aVF']],i);
+  }
+  let axis=Math.round(Math.atan2(aVF,aI)/DEG); if(axis<0)axis+=360;
+  if(axis>180)axis-=360;
+  // QRS 宽度 / PR / QT:由 II 导联实测
+  let qrs=0,pr=0,qt=0;
+  const gate=(v)=>Math.abs(v)>0.045;
+  let l=Math.floor((tR-0.25)*FS),r=Math.floor((tR+0.30)*FS);
+  let peak=0,peakI=l;
+  for(let i=l;i<=Math.floor((tR+0.12)*FS);i++){ const v=sampIdx(buf,i); if(v>peak){peak=v;peakI=i;} }
+  let a=peakI; while(a>l&&gate(sampIdx(buf,a-1)))a--;
+  let b=peakI; while(b<Math.floor((tR+0.25)*FS)&&gate(sampIdx(buf,b+1)))b++;
+  qrs=(b-a)/FS;
+  // PR:P 波结束到 QRS
+  let pw0=Math.floor((tR-0.34)*FS);
+  for(let i=pw0;i<a;i++) if(gate(sampIdx(buf,i))){ pr=Math.max(pr,(a-i)/FS); break; }
+  if(qrs<0.02){ qrs=S.qrsInt; pr=S.prInt; }
+  // QT
+  let e=b; while(e<Math.floor((tR+0.55)*FS)&&Math.abs(sampIdx(buf,e))>0.028)e++;
+  qt=(e-peakI)/FS; if(qt<0.15)qt=S.qtInt;
+  const rrq=hr?60/hr:0.8;
+  const qtc=qt/Math.sqrt(Math.max(0.2,rrq/1));
+  // 判读
+  const notes=[];
+  if(hr){ if(hr<60)notes.push(['心动过缓',1]); if(hr>100)notes.push(['心动过速',1]); }
+  if(qrs>0.12)notes.push(['QRS 增宽 ('+(qrs*1000).toFixed(0)+' ms) — 束支阻滞/室性起源/预激',1]);
+  if(pr>0.20)notes.push(['PR 延长 ('+(pr*1000).toFixed(0)+' ms)',1]);
+  if(qtc>0.45)notes.push(['QTc 延长',1]);
+  if(S.land.ant>0.1)notes.push(['V1–V4 ST 段抬高 — 前壁梗死可能',2]);
+  if(S.land.inf>0.1)notes.push(['Ⅱ/Ⅲ/aVF ST 段抬高 — 下壁梗死可能',2]);
+  if(S.land.lat>0.1)notes.push(['Ⅰ/aVL/V5/V6 ST 段改变',1]);
+  if(S.land.lvh>0.2)notes.push(['电压增高,R/R′ 增高 — 左室肥厚可能',0]);
+  const rh=RHY[S.rhythmForce||S.rhythm];
+  el.innerHTML=
+   '<div><span>心率</span><b>'+(hr||'--')+'</b><span>bpm &nbsp;·&nbsp; 律:'+rh.n+'</span></div>'+
+   '<div><span>电轴</span><b>'+axis+'°</b><span>&nbsp;·&nbsp; Ⅱ 导联振幅 '+(aII/FS).toFixed(2)+' mV·s</span></div>'+
+   '<div><span>PR</span><b>'+(pr*1000).toFixed(0)+'</b><span>ms &nbsp;·&nbsp; QRS <b>'+(qrs*1000).toFixed(0)+'</b> ms</span></div>'+
+   '<div><span>QT/QTc</span><b>'+(qt*1000).toFixed(0)+'/'+(qtc*1000).toFixed(0)+'</b><span>ms (Bazett)</span></div>'+
+   '<div><span>HRV</span><b>SDNN '+S.hrv.sdnn.toFixed(0)+' / RMSSD '+S.hrv.rmssd.toFixed(0)+'</b><span> ms · RR '+S.hrv.rr+' ms</span></div>'+
+   '<div><span>危险</span><b style="color:'+(S.tdpRisk>0.5?'#ff3b30':(S.tdpRisk>0.25?'#ffd23f':'#39ff88'))+'">尖端扭转风险 '+Math.round(S.tdpRisk*100)+'%</b><span> · K⁺ '+S.elec.K.toFixed(1)+' Mg²⁺ '+S.elec.Mg.toFixed(1)+' · 体温 '+S.temp.toFixed(1)+'℃</span></div>'+
+   '<div><span>SpO₂</span><b>'+S.sao2.toFixed(1)+'%</b><span>&nbsp;·&nbsp; PaO₂ '+Math.round(S.pao2)+' &nbsp; PaCO₂ '+Math.round(S.paco2)+
+   ' &nbsp; 乳酸 '+S.lactate.toFixed(1)+' mmol/L</span></div>'+
+   '<div><span>血流</span><b>CO '+(S.co||0).toFixed(2)+'</b><span>L/min &nbsp;·&nbsp; SV '+Math.round(S.sv||0)+' mL &nbsp; SVR '+Math.round(S.svr)+' &nbsp; DO₂/VO₂ '+(S.dox||0).toFixed(2)+'</span></div>'+
+   (notes.length?'<hr class="sep"><div style="color:#6b7d8e">自动判读</div>'+notes.map(n=>
+     '<div style="color:'+(n[1]===2?'#ff5b5b':n[1]===1?'#ffd23f':'#8fb0c8')+';margin-top:3px">• '+n[0]+'</div>').join(''):'')+
+   '<hr class="sep"><div class="note">本页由实时向量环信号按标准 3×4 排布渲染(Ⅰ/aVR/V1/V4;Ⅱ/aVL/V2/V5;Ⅲ/aVF/V3/V6)+ Ⅱ 导联长节律条。'+
+   '波形为数值仿真,非真实患者数据。</div>';
+}
+
+/* ============================================================
+   13. UI 构建
+   ============================================================ */
+function h(tag,cls,html){ const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+function openSheet(title,build){
+  document.getElementById('sheetTitle').textContent=title;
+  const b=document.getElementById('sheetBody'); b.innerHTML=''; build(b);
+  document.getElementById('sheet').classList.add('on'); document.getElementById('scrim').classList.add('on');
+}
+function closeSheet(){ document.getElementById('sheet').classList.remove('on'); document.getElementById('scrim').classList.remove('on'); closeDrawer(); }
+function ctlSlider(p,label,get,set,min,max,step,fmt){
+  const r=h('div','rowi');
+  r.appendChild(h('div','lb',label));
+  const i=h('input'); i.type='range'; i.min=min; i.max=max; i.step=step; i.value=get();
+  const v=h('div','val',(fmt||(x=>x.toFixed(1)))(get()));
+  i.oninput=()=>{ set(parseFloat(i.value)); v.textContent=fmt(get()); markDirty(); };
+  r.appendChild(i); r.appendChild(v); p.appendChild(r); return r;
+}
+function ctlSwitch(p,label,get,set){
+  const r=h('div','rowi'); r.appendChild(h('div','lb',label));
+  const s=h('div','sw'+(get()?' on':''));
+  s.onclick=()=>{ set(!get()); s.classList.toggle('on',get()); };
+  r.appendChild(s); p.appendChild(r); return r;
+}
+function ctlSelect(p,label,opts,get,set){
+  const r=h('div','rowi'); r.appendChild(h('div','lb',label));
+  const s=h('select'); opts.forEach(o=>{ const op=h('option',null,o[1]); op.value=o[0]; if(String(get())===String(o[0]))op.selected=true; s.appendChild(op); });
+  s.onchange=()=>set(s.value); r.appendChild(s); p.appendChild(r); return r;
+}
+function grp(p,t){ const g=h('div','grp'); g.appendChild(h('h4',null,t)); p.appendChild(g); return g; }
+
+/* ---------- 常用波形组合 ---------- */
+const PRESETS={
+ '心电三导':['I','II','III'],
+ '心电+血氧+血压':['II','PLTH','ART'],
+ '重症全套':['II','V1','ART','PLTH','RESP','CO2'],
+ '除颤监护':['II','PLTH','ART','CO2'],
+ '呼吸血气':['RESP','CO2','PLTH'],
+ '血氧血压专项':['PLTH','ART','RESP'],
+ '全 12 导联':LEADS.map(l=>l.n),
+};
+function applyPreset(k){ S.view.leads=PRESETS[k].slice(); buildRows(); toast('已切换: '+k); }
+function presetChips(){
+  const box=h('div','chips');
+  Object.keys(PRESETS).forEach(k=>{
+    const c=h('div','chip',k);
+    c.onclick=()=>{ applyPreset(k); box.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on'); };
+    box.appendChild(c);
+  });
+  return box;
+}
+/* ---------- 抽屉 ---------- */
+const MENU=[
+ {i:'📈',n:'12 导联心电图',f:()=>{closeDrawer();document.getElementById('pg12').classList.add('on');setTimeout(draw12,60);}},
+ {i:'📊',n:'波形组合',sub:'心电 / 血氧 / 血压',f:()=>{closeDrawer();openPreset();}},
+ {i:'🔧',n:'设置',sub:'显示 / 波形 / 患者 / 作弊',f:()=>{closeDrawer();openSettings();}},
+ {i:'🫀',n:'心律选择',f:()=>{closeDrawer();openRhythm();}},
+ {i:'💊',n:'给药',f:()=>{closeDrawer();openDrugs();}},
+ {i:'⚡',n:'除颤 / 电复律',f:()=>{closeDrawer();openDefib();}},
+ {i:'🩺',n:'无创血压',f:()=>{closeDrawer();openNibp();}},
+ {i:'👐',n:'CPR 胸外按压',f:()=>{closeDrawer();openCpr();}},
+ {i:'🔌',n:'电极 / 导联管理',f:()=>{closeDrawer();openElec();}},
+ {i:'📊',n:'呼吸与血气',f:()=>{closeDrawer();openVent();}},
+ {i:'🩸',n:'动脉血气',f:()=>{closeDrawer();openABG();}},
+ {i:'⚡',n:'心电图特质(电解质/体温/药物)',f:()=>{closeDrawer();openECG();}},
+ {i:'📤',n:'导出心电图',sub:'PNG / CSV',f:()=>{closeDrawer();openExport();}},
+ {i:'💧',n:'出入量平衡',f:()=>{closeDrawer();openIO();}},
+ {i:'📋',n:'事件日志',f:()=>{closeDrawer();openLog();}},
+ {i:'❓',n:'说明',f:()=>{closeDrawer();openAbout();}},
+];
+let drawerSoon=null;
+function renderDrawerSoon(){ clearTimeout(drawerSoon); drawerSoon=setTimeout(renderDrawer,300); }
+function renderDrawer(){
+  const nav=document.getElementById('drawerNav');
+  nav.innerHTML='';
+  MENU.forEach(m=>{ const d=h('div','it','<i>'+m.i+'</i><span>'+m.n+'</span><span class="sub"></span>');
+    d.onclick=m.f; nav.appendChild(d); });
+  const st=h('div','it','<i>🔊</i><span>声音提示</span>');
+  const s=h('div','sw'+(S.sound?' on':'')); s.onclick=()=>{ S.sound=!S.sound; s.classList.toggle('on',S.sound); audioInit(); };
+  st.appendChild(s); nav.appendChild(st);
+  const st2=h('div','it','<i>🔔</i><span>心搏音 (QRS)</span>');
+  const s2=h('div','sw'+(S.qrsSound?' on':'')); s2.onclick=()=>{ S.qrsSound=!S.qrsSound; s2.classList.toggle('on',S.qrsSound); audioInit(); };
+  st2.appendChild(s2); nav.appendChild(st2);
+  const st3=h('div','it'); st3.innerHTML='<i>⏱</i><span>模拟时间倍率</span>'; st3.appendChild(h('div','sub','×'+S.timeScale));
+  nav.appendChild(st3);
+}
+function openDrawer(){ document.getElementById('drawer').classList.add('on'); document.getElementById('scrim').classList.add('on'); }
+function closeDrawer(){ document.getElementById('drawer').classList.remove('on');
+  if(!document.getElementById('sheet').classList.contains('on')) document.getElementById('scrim').classList.remove('on'); }
+
+/* ---------- 设置 ---------- */
+function openSettings(){
+  openSheet('设置',(b)=>{
+    // 显示
+    let g=grp(b,'① 显示 / 通道');
+    g.appendChild(h('div','note','常用组合(点一下就换):'));
+    g.appendChild(presetChips());
+    g.appendChild(h('div','note','逐个开关(顺序即显示顺序):'));
+    const allCh=LEADS.map(l=>l.n).concat(['PLTH','ART','RESP','CO2']);
+    const chips=h('div','chips');
+    allCh.forEach(k=>{ const c=h('div','chip'+(S.view.leads.indexOf(k)>=0?' on':''),
+      k in CH?CH[k].l:k+'</span>');
+      c.innerHTML=k in CH?CH[k].l:k;
+      c.onclick=()=>{ const i=S.view.leads.indexOf(k);
+        if(i>=0){ if(S.view.leads.length<=1)return toast('至少保留 1 个通道'); S.view.leads.splice(i,1);} else S.view.leads.push(k);
+        c.classList.toggle('on',S.view.leads.indexOf(k)>=0); buildRows(); };
+      chips.appendChild(c); });
+    b.appendChild(chips);
+    b.appendChild(h('div','note','点击开关波形通道,上下顺序即显示顺序。'));
+    ctlSelect(g,'扫速',[['12.5','12.5 mm/s'],['25','25 mm/s(标准)'],['50','50 mm/s']],()=>S.view.speed,v=>{S.view.speed=parseFloat(v);buildRows();});
+    ctlSelect(g,'增益',[['5','5 mm/mV'],['10','10 mm/mV'],['20','20 mm/mV']],()=>S.view.gain,v=>{S.view.gain=parseFloat(v);});
+    ctlSlider(g,'行高',()=>S.view.rows,v=>{S.view.rows=v;buildRows();},56,140,2,v=>v+'px');
+    ctlSlider(g,'扫描倍速',()=>S.view.scanSpeed,v=>S.view.scanSpeed=v,0.5,4,.5,
+      v=>'×'+v.toFixed(1)+'（每屏 '+(SCREEN_MM/S.view.speed/v).toFixed(2)+' s）');
+    ctlSelect(g,'波形颜色',[['channel','按通道(ECG绿/SpO₂青/BP红)'],['green','全绿'],['white','全白'],['yellow','全黄']],()=>S.view.traceColor,v=>S.view.traceColor=v);
+    ctlSwitch(g,'定标脉冲',()=>S.view.cal,v=>{S.view.cal=v;buildRows();});
+    ctlSwitch(g,'12导联页紧凑模式',()=>L12MODE.compact,v=>{L12MODE.compact=v;draw12();});
+
+    // 波形微调
+    g=grp(b,'② 强行调整波形(直接改形态)');
+    ctlSlider(g,'P 波振幅',()=>S.wave.pAmp,v=>S.wave.pAmp=v,0,3,.05,v=>v.toFixed(2)+'×');
+    ctlSlider(g,'P 波宽度',()=>S.wave.pWidth,v=>S.wave.pWidth=v,.5,2,.05,v=>v.toFixed(2)+'×');
+    ctlSwitch(g,'P 波倒置',()=>S.wave.pInv,v=>S.wave.pInv=v);
+    ctlSlider(g,'QRS 振幅',()=>S.wave.qrsAmp,v=>S.wave.qrsAmp=v,.2,2.5,.05,v=>v.toFixed(2)+'×');
+    ctlSlider(g,'QRS 宽度',()=>S.wave.qrsWidth,v=>S.wave.qrsWidth=v,.6,2.2,.05,v=>v.toFixed(2)+'×');
+    ctlSlider(g,'ST 段偏移(全局)',()=>S.wave.stShift,v=>S.wave.stShift=v,-.6,1,.02,v=>(v>0?'+':'')+v.toFixed(2)+' mV');
+    ctlSlider(g,'T 波振幅',()=>S.wave.tAmp,v=>S.wave.tAmp=v,0,2.5,.05,v=>v.toFixed(2)+'×');
+    ctlSwitch(g,'T 波倒置',()=>S.wave.tInv,v=>S.wave.tInv=v);
+    ctlSlider(g,'心电轴旋转',()=>S.wave.axis,v=>S.wave.axis=v,-90,90,1,v=>v+'°');
+    ctlSlider(g,'肌电/噪声',()=>S.wave.noise,v=>S.wave.noise=v,0,3,.05,v=>v.toFixed(2));
+    ctlSlider(g,'基线漂移',()=>S.wave.wander,v=>S.wave.wander=v,0,3,.05,v=>v.toFixed(2));
+    ctlSlider(g,'呼吸性变异(RSA)',()=>S.wave.rsa,v=>S.wave.rsa=v,0,2,.05,v=>v.toFixed(2)+'×');
+
+    // 伪差
+    g=grp(b,'②b 干扰与伪差(只在显示时叠加,不污染波形)');
+    ctlSlider(g,'肌电/白噪声',()=>S.wave.noise,v=>S.wave.noise=v,0,3,.05,v=>v.toFixed(2));
+    ctlSlider(g,'基线漂移',()=>S.wave.wander,v=>S.wave.wander=v,0,3,.05,v=>v.toFixed(2));
+    ctlSlider(g,'50 Hz 工频干扰',()=>S.mains,v=>S.mains=v,0,2,.05,v=>v?v.toFixed(2):'关');
+    ctlSwitch(g,'寒战 / 躁动(持续肌电+体动)',()=>S.tremor>0,v=>{S.tremor=v?1:0;});
+    ctlSlider(g,'体动发生频率',()=>S.motionAmt,v=>S.motionAmt=v,0,2,.05,v=>v<0.02?'关闭':('约 1 次 / '+Math.round(20/v)+' s'));
+    const mv=h('div','bgrid');
+    const mb1=h('div','btn pri','🖐 手动触发一次体动'); mb1.onclick=()=>{ triggerMotion(rnd(.8,1.6)); toast('已触发体动伪差'); };
+    const mb2=h('div','btn','🧹 清除全部'); mb2.onclick=()=>{ MOTION.length=0; toast('已清除'); };
+    mv.appendChild(mb1); mv.appendChild(mb2); g.appendChild(mv);
+    g.appendChild(h('div','note','噪声用「采样点序号」做确定性伪随机:同一个采样点每次刷新得到同一个值,'+
+      '所以滚动时噪声跟着波形走,不会每帧闪烁、也不会在缓冲区里残留旧噪声。'+
+      '真正的肌电干扰是宽带低频包络,50 Hz 工频只在电极接触不良时出现,体动伪差直接叠加在脉搏波上。'));
+
+    // 病理
+    g=grp(b,'③ 病理改变(区域性 ST / 束支 / 肥厚)');
+    ctlSlider(g,'前壁 V1–V4 ST 抬高',()=>S.land.ant,v=>S.land.ant=v,0,.8,.01,v=>(v*1000).toFixed(0)+' mV');
+    ctlSlider(g,'下壁 Ⅱ/Ⅲ/aVF ST 抬高',()=>S.land.inf,v=>S.land.inf=v,0,.8,.01,v=>(v*1000).toFixed(0)+' mV');
+    ctlSlider(g,'侧壁 Ⅰ/aVL/V5/V6 ST',()=>S.land.lat,v=>S.land.lat=v,0,.8,.01,v=>(v*1000).toFixed(0)+' mV');
+    ctlSlider(g,'病理性 Q 波',()=>S.land.qwave,v=>S.land.qwave=v,0,.5,.01,v=>(v*1000).toFixed(0)+' mV');
+    ctlSlider(g,'左室肥厚',()=>S.land.lvh,v=>S.land.lvh=v,0,1,.05,v=>v.toFixed(2));
+    ctlSlider(g,'右室肥厚',()=>S.land.rv5,v=>S.land.rv5=v,0,1,.05,v=>v.toFixed(2));
+    ctlSwitch(g,'完全性左束支阻滞',()=>S.land.lbbb>0.5,v=>S.land.lbbb=v?1:0);
+    ctlSwitch(g,'完全性右束支阻滞',()=>S.land.rbbb>0.5,v=>S.land.rbbb=v?1:0);
+
+    // 患者
+    g=grp(b,'④ 患者基线');
+    ctlSlider(g,'年龄',()=>S.age,v=>S.age=v,1,95,1,v=>v+' y');
+    ctlSlider(g,'体重',()=>S.weight,v=>S.weight=v,30,120,1,v=>v+' kg');
+    ctlSlider(g,'血红蛋白',()=>S.hb,v=>S.hb=v,60,180,1,v=>v+' g/L');
+    ctlSlider(g,'收缩力(基线)',()=>S.base.contract,v=>S.base.contract=v,.1,2,.05,v=>v.toFixed(2));
+    ctlSlider(g,'体循环阻力',()=>S.base.svr,v=>S.base.svr=v,5,32,.5,v=>v.toFixed(1));
+    ctlSlider(g,'血容量',()=>S.base.vol,v=>S.base.vol=v,40,160,1,v=>v+'%');
+    ctlSlider(g,'基础心率',()=>S.base.hrBase,v=>S.base.hrBase=v,30,160,1,v=>v+' bpm');
+    ctlSlider(g,'呼吸频率',()=>S.base.rr,v=>S.base.rr=v,0,40,1,v=>v+' /min');
+    ctlSlider(g,'吸入氧浓度 FiO₂',()=>S.fio2,v=>S.fio2=v,.21,1,.01,v=>(v*100).toFixed(0)+'%');
+    ctlSlider(g,'体温',()=>S.base.temp,v=>S.base.temp=v,33,42,.1,v=>v.toFixed(1)+'℃');
+
+    // 自然病程
+    g=grp(b,'④b 自然病程(时间驱动的病理演进)');
+    ctlSwitch(g,'启用自然病程',()=>S.prog.on,v=>{S.prog.on=v;
+      if(!v){S.prog.vtEff=0.85;S.prog.next=Infinity;S.prog.compT=0;S.prog.comp=1;}
+      log(v?'自然病程 ON':'自然病程 OFF');});
+    ctlSlider(g,'病程推进速度',()=>S.prog.speed,v=>S.prog.speed=v,0.2,4,.1,v=>'×'+v.toFixed(1));
+    g.appendChild(h('div','note','开启后「时间」本身就是驱动力:<br>'+
+      '· 持续性室速 → 有效顺行射血逐分衰减(室性快速同步收缩几乎不泵血)→ 约 5 分钟血压崩塌 → 恶化为多形性室速 / 尖端扭转 → 室颤<br>'+
+      '· 室颤不处理:心肌能量耗竭,粗颤 → 细颤 → 心室停搏;每次未转复的除颤进一步耗散能量<br>'+
+      '· 有脉转为无脉时存在 3.5–7.5 s 的<strong>残余血压期</strong>:主动脉残血继续外流、导管有惯性,最初几秒仍读得到微弱压力与脉搏,随后归零<br>'+
+      '· 低灌注时交感代偿被持续调用,储备耗竭后代偿失效 → 血压断崖式下跌<br>'+
+      '· 房扑多自行转为房颤;阵发性室上速多数自限;持续性室速有 6% 概率自行终止'));
+
+    // 报警
+    g=grp(b,'⑤ 报警阈值');
+    ctlSlider(g,'HR 上限',()=>S.alarm.hrHi,v=>S.alarm.hrHi=v,90,200,1,v=>v);
+    ctlSlider(g,'HR 下限',()=>S.alarm.hrLo,v=>S.alarm.hrLo=v,30,80,1,v=>v);
+    ctlSlider(g,'SpO₂ 下限',()=>S.alarm.spo2Lo,v=>S.alarm.spo2Lo=v,75,98,1,v=>v+'%');
+    ctlSlider(g,'收缩压上限',()=>S.alarm.sbpHi,v=>S.alarm.sbpHi=v,140,220,5,v=>v);
+    ctlSlider(g,'收缩压下限',()=>S.alarm.sbpLo,v=>S.alarm.sbpLo=v,60,110,5,v=>v);
+    ctlSlider(g,'MAP 下限',()=>S.alarm.mapLo,v=>S.alarm.mapLo=v,40,80,1,v=>v);
+
+    // 作弊
+    g=grp(b,'⑥ 作弊 / 训练模式');
+    ctlSwitch(g,'无敌模式(心搏骤停不死亡)',()=>S.cheat.god,v=>{S.cheat.god=v;log(v?'无敌模式 ON':'无敌模式 OFF');});
+    ctlSwitch(g,'无限除颤能量/电量',()=>S.cheat.infEnergy,v=>S.cheat.infEnergy=v);
+    ctlSwitch(g,'除颤必定成功',()=>S.cheat.forceShock,v=>S.cheat.forceShock=v);
+    ctlSwitch(g,'强制除颤(无视适应症)',()=>S.cheat.forceShock,v=>S.cheat.forceShock=v);
+    ctlSwitch(g,'一键 ROSC',()=>false,v=>{ if(v){ revive(); log('✓ 强制 ROSC'); } });
+    ctlSlider(g,'锁定心率 (0=不锁)',()=>S.hrLock||0,v=>S.hrLock=(v?60/v:0),0,250,1,v=>v?Math.round(60/v)+' bpm':'关');
+    ctlSlider(g,'锁定 SpO₂ (0=不锁)',()=>S.spo2Lock||0,v=>S.spo2Lock=(v?v:0),0,100,1,v=>v?v+'%':'关');
+    ctlSlider(g,'锁定 MAP (0=不锁)',()=>S.mapLock||0,v=>S.mapLock=(v?v:0),0,140,1,v=>v?v+' mmHg':'关');
+    ctlSlider(g,'时间倍率',()=>S.timeScale,v=>S.timeScale=v,.1,4,.1,v=>'×'+v.toFixed(1));
+
+    const r=h('div','bgrid');
+    const rb=h('div','btn','↺ 恢复默认'); rb.onclick=()=>{ S.land={ant:0,inf:0,lat:0,lbbb:0,rbbb:0,qwave:0,lvh:0,rv5:0};
+      S.wave={pAmp:1,pWidth:1,pInv:false,qrsAmp:1,qrsWidth:1,stShift:0,tAmp:1,tInv:false,axis:0,noise:.35,wander:.4,rsa:1};
+      S.cheat={god:false,infEnergy:false,alwaysROSC:false,forceShock:false,lockHR:0,lockSpO2:0,lockMAP:0};
+      S.hrLock=0;S.spo2Lock=0;S.mapLock=0; S.timeScale=1;
+      openSettings(); toast('已恢复默认'); };
+    r.appendChild(rb);
+    b.appendChild(r);
+    b.appendChild(h('div','note','提示:设置面板中"强行调整波形"直接作用于向量环参数,12 个导联会同步按投影关系一起变化。'));
+  });
+}
+
+/* ---------- 波形组合 ---------- */
+function openPreset(){
+  openSheet('波形组合(显示哪些通道)',(b)=>{
+    const g=grp(b,'一键组合');
+    g.appendChild(presetChips());
+    const g2=grp(b,'逐个开关(顺序即显示顺序)');
+    const all=LEADS.map(l=>l.n).concat(['PLTH','ART','RESP','CO2']);
+    const chips=h('div','chips');
+    all.forEach(k=>{
+      const c=h('div','chip'+(S.view.leads.indexOf(k)>=0?' on':''),
+        k in CH?(CH[k].l+(CH[k].unit?' ('+CH[k].unit+')':'')):k);
+      c.style.borderColor=(S.view.leads.indexOf(k)>=0)?chColor(k):'';
+      c.onclick=()=>{ const i=S.view.leads.indexOf(k);
+        if(i>=0){ if(S.view.leads.length<=1)return toast('至少保留 1 个通道'); S.view.leads.splice(i,1);} else S.view.leads.push(k);
+        const on=S.view.leads.indexOf(k)>=0;
+        c.classList.toggle('on',on); c.style.borderColor=on?chColor(k):''; buildRows(); };
+      chips.appendChild(c);
+    });
+    g2.appendChild(chips);
+    g2.appendChild(h('div','note','PLTH=脉搏波(血氧通道),ART=有创动脉压,RESP=阻抗呼吸波,CO₂=呼末二氧化碳波形。'+
+      '12 个心电导联(Ⅰ、Ⅱ、Ⅲ、aVR、aVL、aVF、V1–V6)也在这个列表里。'));
+    const g3=grp(b,'当前显示顺序');
+    g3.appendChild(h('div','note',S.view.leads.map(k=>k in CH?CH[k].l:k).join(' → ')));
+  });
+}
+/* ---------- 心律 ---------- */
+function openRhythm(){
+  openSheet('心律与事件',(b)=>{
+    const g=grp(b,'心律');
+    const wrap=h('div','chips');
+    Object.keys(RHY).forEach(k=>{
+      const c=h('div','chip'+((S.rhythmForce||S.rhythm)===k?' on':''),(RHY[k].alias==='sinus')?RHY[k].n:(RHY[k].n));
+      c.onclick=()=>{ setRhythm(k);
+        if(k==='vf'){ S.pulsePresent=false; S.arrestAt=S.t; log('⚠ 心室颤动'); }
+        [...wrap.children].forEach(x=>x.classList.remove('on')); c.classList.add('on'); };
+      wrap.appendChild(c);
+    });
+    g.appendChild(wrap);
+    const g2=grp(b,'紧急事件');
+    const mk=(n,f)=>{ const c=h('div','btn',n); c.style.marginBottom='8px'; c.onclick=()=>{ f(); }; g2.appendChild(c); };
+    mk('💔 突发心脏骤停(VF)',()=>{ setRhythm('vf'); S.pulsePresent=false; S.arrestAt=S.t; toast('心室颤动'); });
+    mk('💔 无脉性电活动(PEA)',()=>{ setRhythm('pea'); S.pulsePresent=false; S.arrestAt=S.t; toast('无脉电活动'); });
+    mk('💔 心室停搏',()=>{ setRhythm('ag'); S.pulsePresent=false; S.arrestAt=S.t; toast('心室停搏'); });
+    mk('🩸 活动性出血 — 血容量 → 55%',()=>{ S.base.vol=55; S.motionAmt=1.2; triggerMotion(1.4,1.2); log('🩸 失血,容量骤减'); });
+    mk('🫁 呼吸暂停',()=>{ S.base.rr=0; toast('呼吸暂停 — SpO₂ 将进行性下降'); });
+    mk('😵 急性过敏 — SVR↓ 心率↑',()=>{ S.base.svr=8; S.base.hrBase=130; toast('过敏性休克'); });
+    mk('🤒 高热 39.5℃',()=>{ S.base.temp=39.5; });
+    mk('🫁 急性肺栓塞(急性右心衰)',()=>{ S.lesion.pe=1; S.base.contract=Math.min(S.base.contract,0.75); log('🫁 急性肺栓塞'); });
+    mk('🫀 心包填塞(缩窄性休克)',()=>{ S.lesion.tamp=1; log('🫀 心包填塞 — 中心静脉压急剧升高'); });
+    mk('💨 张力性气胸',()=>{ S.lesion.tension=1; log('💨 张力性气胸'); });
+    mk('🩹 解除三项病变',()=>{ S.lesion.pe=S.lesion.tamp=S.lesion.tension=0; log('🩹 结构性病变解除'); });
+    mk('❤️‍🩹 心梗 — 前壁 ST 抬高',()=>{ S.land.ant=0.35; S.land.qwave=0.22; toast('前壁 STEMI'); });
+    mk('✅ 恢复正常窦性(重置整个病例)',()=>{
+    revive();
+    S.base.vol=100; S.base.svr=17.5; S.base.contract=1; S.base.hrBase=72; S.base.rr=14;
+    S.lactate=0.8; S.paco2=40; S.svo2=75; S.pao2=95; S.prog.t=0; S.prog.compT=0; S.prog.comp=1;
+    S.motionAmt=0.30; S.defib.batt=100;
+    toast('病例已重置'); });
+    const g3=grp(b,'自主/手动呼吸');
+    ctlSwitch(g3,'机械通气',()=>!!S.mechVent,v=>S.mechVent=v);
+    ctlSwitch(g3,'恢复自主呼吸',()=>S.base.rr===0,v=>{ if(v)S.base.rr=14; });
+  });
+}
+/* ---------- 给药 ---------- */
+function openDrugs(){
+  openSheet('给药',(b)=>{
+    if(S.medLog&&S.medLog.length){
+      const g0=grp(b,'已给药物');
+      const box=h('div','logbox',S.medLog.slice(0,12).map(m=>'<div><time>'+new Date(S.t*1000).toLocaleTimeString('zh-CN',{hour12:false})+
+        '</time>'+m.n+' <b style="color:#8fb0c8">'+m.dose+'</b></div>').join(''));
+      g0.appendChild(box);
+    }
+    const g=grp(b,'静注药物 (真实剂量 / 起效 / 药代)');
+    DRUGS.forEach(d=>{
+      const c=h('div','dcard');
+      c.innerHTML='<div class="t"><b>'+d.n+'</b><span class="cls '+d.cls+'">'+d.clsN+'</span><em>'+d.en+'</em></div>'+
+        '<div class="d">'+d.d+'</div>';
+      const a=h('div','acts');
+      d.doses.forEach((ds,i)=>{ const btn=h('button',null,ds); btn.onclick=()=>giveDrug(d.id,i); a.appendChild(btn); });
+      c.appendChild(a); g.appendChild(c);
+    });
+    b.appendChild(h('div','note','给药按一阶药代动力学叠加(起效时间 + 达峰 + 半衰期衰减),作用于同一套循环动力学参数,因此血压/血氧/心率会真实联动。'));
+  });
+}
+/* ---------- 除颤 ---------- */
+function openDefib(){
+  openSheet('除颤 / 同步电复律',(b)=>{
+    const D=S.defib, rh=curRhythm();
+    const w=h('div','defibwrap');
+    w.innerHTML=
+      '<div class="note" style="text-align:left">当前心律</div>'+
+      '<div style="font-size:18px;font-weight:700;color:'+(rh.vf?'#ff3b30':'#39ff88')+';text-align:left">'+rh.n+'</div>'+
+      '<div style="margin:14px 0 2px"><span class="bigJ" id="eVal">'+D.e+'<span> J</span></span></div>'+
+      '<div class="syl" id="sylWrap">'+DEFIB_STEPS.map(x=>'<span class="chip'+(Math.abs(x-D.e)<0.1?' on':'')+'" data-e="'+x+'">'+x+'</span>').join('')+'</div>'+
+      '<div class="capbar'+(D.ch>=1?' full':'')+'"><i style="width:'+(D.ch*100)+'%"></i></div>'+
+      '<div class="note" id="capTx" style="text-align:left">电容器状态:'+(D.st==='ready'?'已充电 ✓':D.st==='charging'?'充电中…':'待机')+' &nbsp;·&nbsp; 电量 '+D.batt.toFixed(0)+'%</div>'+
+      '<div style="margin:10px 0 4px;font-size:12px" id="rdyTx"></div>'+
+      '<div class="bgrid" style="margin-top:10px">'+
+      '<div class="btn pri" id="bCharge">⚡ 开始充电</div>'+
+      '<div class="btn" id="bShock" style="opacity:.45">☠ 放电(未就绪)</div></div>'+
+      '<div class="bgrid" style="margin-top:8px">'+
+      '<div class="btn" id="bAbort">取消充电</div>'+
+      '<div class="btn'+(S.defib.sync?' pri':'')+'" id="bSync">同步:'+(S.defib.sync?'ON':'OFF')+'</div></div>'+
+      '<div class="bgrid" style="margin-top:8px">'+
+      '<div class="btn" id="bPaddle">☗ 涂导电糊</div>'+
+      '<div class="btn" id="bHand">👐 按压板就位</div></div>';
+    b.appendChild(w);
+    w.querySelectorAll('.syl .chip').forEach(c=>c.onclick=()=>{ defibSetE(+c.dataset.e);
+      w.querySelector('#eVal').innerHTML=D.e+'<span> J</span>';
+      w.querySelectorAll('.syl .chip').forEach(x=>x.classList.toggle('on',+x.dataset.e===D.e)); });
+    const capUp=()=>{ const i=w.querySelector('.capbar i'), t=w.querySelector('#capTx'), r=w.querySelector('#rdyTx'), bs=w.querySelector('#bShock');
+      if(!i)return; i.style.width=(D.ch*100)+'%';
+      i.parentElement.classList.toggle('full',D.charged);
+      t.innerHTML='电容器 '+Math.round(D.ch*100)+'% &nbsp;·&nbsp; 电量 '+D.batt.toFixed(0)+'%';
+      if(r) r.innerHTML=D.charged?'<b style="color:#39ff88">● 就绪 — 可以放电</b>':
+        (D.st==='charging'?'<span style="color:#ffd23f">◐ 充电中 '+Math.round(D.ch*100)+'%,充满后自动变绿</span>'
+                         :'<span style="color:#6b7d8e">○ 待机 — 先点「开始充电」</span>');
+      if(bs){ bs.style.opacity=D.charged?1:.45; bs.style.borderColor=D.charged?'#ff3b30':'';
+        bs.textContent=D.charged?('☠ 放电 '+D.e+' J'):'☠ 放电(未就绪)'; }
+      setTimeout(()=>{ if(document.getElementById('sheet').classList.contains('on')) capUp(); },120);
+    };
+    setTimeout(capUp,150);
+    w.querySelector('#bCharge').onclick=()=>{ defibCharge(); audioInit(); };
+    w.querySelector('#bShock').onclick=()=>defibShock();
+    w.querySelector('#bAbort').onclick=()=>defibAbort();
+    w.querySelector('#bSync').onclick=e=>{ S.defib.sync=!S.defib.sync; e.target.classList.toggle('pri',S.defib.sync);
+      e.target.textContent='同步:'+(S.defib.sync?'ON':'OFF'); };
+    w.querySelector('#bPaddle').onclick=e=>{ S.paddle=!S.paddle; e.target.textContent='☗ 导电糊'+(S.paddle?' ✓':''); };
+    w.querySelector('#bHand').onclick=e=>{ S.hand=!S.hand; e.target.textContent='👐 按压板'+(S.hand?' ✓':''); };
+    // 娱乐模式:非适应症也放
+    const gE=grp(b,'娱乐模式');
+    ctlSwitch(gE,'⚡ 强制除颤(无视适应症,纯好玩)',()=>!!S.cheat.forceShock,v=>{
+      S.cheat.forceShock=v;
+      if(v){ setRhythm(['sinus','sinusB','sinusT','af','svt','pvc','avb2'][irnd(0,6)]); }
+      log(v?'强制除颤 ON:当前心律 '+curRhythm().n:'强制除颤 OFF'); });
+    ctlSwitch(gE,'☠ 必转复(放电必定转复成窦律)',()=>!!S.cheat.alwaysROSC,v=>{S.cheat.alwaysROSC=v;});
+    gE.appendChild(h('div','note','打开强制除颤后,任何心律都可以放电 —— 会把当前心律随机换成另一种,'+
+      '并伴随心肌顿抑导致的血压骤降。纯娱乐/演示用,没有任何临床含义。'));
+    const g=grp(b,'除颤成功概率模型');
+    g.appendChild(h('div','note','P(转复) = (0.16 + 0.62·E_norm) · e^(−t_停搏/230s) · (CPR 中 ×1.35)，E&lt;120 J 时 ×0.45。<br>'+
+      '当前:心律 '+(rh.vf||(rh.wide&&rh.pulse)?'<b style="color:#ff5b5b">可除颤</b>':'<b style="color:#ffd23f">不可除颤</b>')+
+      ' · 停搏 '+(S.arrestAt<0?'—':(S.t-S.arrestAt).toFixed(0)+' s')+' · CPR '+(S.cpr.active?'进行中':'未进行')+'</div>'));
+  });
+}
+/* ---------- NIBP ---------- */
+function openNibp(){
+  openSheet('无创血压 (振荡法)',(b)=>{
+    const N=S.nibp;
+    const g=grp(b,'袖带');
+    const stat=h('div','note');
+    stat.innerHTML='状态:'+({idle:'待机',inflate:'加压中',deflate:'放气测量中'}[N.st])+
+      ' &nbsp;·&nbsp; 袖带压 <b style="color:#ff5b5b;font-size:17px">'+Math.round(N.cuff)+'</b> mmHg'+
+      (N.st!=='idle'?' <span style="color:#ffd23f">'+Math.round((N.st==='inflate'?N.inflate:N.deflate))+' mmHg/s</span>':'');
+    g.appendChild(stat);
+    const chart=document.createElement('canvas'); chart.width=700; chart.height=200;
+    chart.style.cssText='width:100%;height:110px;margin-top:10px;background:#080c11;border:1px solid #1c2733;border-radius:6px';
+    g.appendChild(chart);
+    const drawC=()=>{ if(!document.getElementById('sheet').classList.contains('on'))return;
+      const cx=chart.getContext('2d'); cx.clearRect(0,0,700,200);
+      if(!N.hist.length)return; const hi=Math.max(180,N.cuff);
+      cx.strokeStyle='#ff5b5b'; cx.lineWidth=1.6; cx.beginPath();
+      N.hist.forEach((p,i)=>{ const x=i/N.hist.length*700, y=200-(p.cuff/hi)*195;
+        i?cx.lineTo(x,y):cx.moveTo(x,y); }); cx.stroke();
+      cx.strokeStyle='#39d7f2'; cx.lineWidth=1.2; cx.beginPath();
+      N.hist.forEach((p,i)=>{ const x=i/N.hist.length*700, y=200-(p.amp/(N.peak||0.15))*70-5;
+        i?cx.lineTo(x,y):cx.moveTo(x,y); }); cx.stroke();
+      cx.fillStyle='#5a6673'; cx.font='11px monospace'; cx.fillText('袖带压 0–'+hi+' mmHg(红) / 振荡幅度(青)',6,14);
+      requestAnimationFrame(drawC); };
+    setTimeout(drawC,200);
+    ctlSlider(g,'加压速度',()=>N.inflate,v=>N.inflate=v,10,40,1,v=>v+' mmHg/s');
+    ctlSlider(g,'放气速度',()=>N.deflate,v=>N.deflate=v,3,20,1,v=>v+' mmHg/s');
+    const r=h('div','bgrid'); r.style.marginTop='10px';
+    const b1=h('div','btn pri',N.st==='idle'?'▶ 开始测量':'■ 停止'); b1.onclick=()=>{
+      if(N.st==='idle'){ N.st='inflate'; N.cuff=0; N.peak=0; N.peakCuff=0; N.sbpx=0; N.dbpx=0; N.hist=[]; S.cuff=0; audioInit(); }
+      else { N.st='idle'; S.cuff=0; }
+      b1.textContent=N.st==='idle'?'▶ 开始测量':'■ 停止'; };
+    const b2=h('div','btn','自动循环'); let auto=N.auto; b2.onclick=()=>{ N.auto=!auto; b2.classList.toggle('pri',auto);
+      if(auto&&N.st==='idle'){ N.st='inflate'; N.cuff=0;N.peak=0;N.sbpx=0;N.dbpx=0;N.hist=[];S.cuff=0; } b1.textContent=N.st==='idle'?'▶ 开始测量':'■ 停止'; };
+    r.appendChild(b1); r.appendChild(b2); g.appendChild(r);
+    if(N.st==='idle'&&auto){ N.st='inflate'; N.cuff=0;N.peak=0;N.sbpx=0;N.dbpx=0;N.hist=[];S.cuff=0; }
+    b2.classList.toggle('pri',!!auto);
+    const g2=grp(b,'最近结果');
+    g2.appendChild(h('div','note',S.nibpRes?('SBP '+S.nibpRes.sbp+' / DBP '+S.nibpRes.dbp+' / MAP '+S.nibpRes.map+' mmHg'):'尚无结果'));
+  });
+}
+/* ---------- CPR ---------- */
+function openCpr(){
+  openSheet('CPR 胸外按压',(b)=>{
+    const g=grp(b,'按压');
+    const r=h('div','bgrid');
+    const b1=h('div','btn'+(S.cpr.active?' pri':''),S.cpr.active?'■ 停止按压':'👐 开始按压');
+    b1.onclick=()=>{ S.cpr.active=!S.cpr.active; b1.textContent=S.cpr.active?'■ 停止按压':'👐 开始按压';
+      b1.classList.toggle('pri',S.cpr.active); if(S.cpr.active)log('👐 开始胸外按压'); else log('👐 停止按压');
+      if(S.cpr.active)audioInit(); };
+    const b2=h('div','btn','⏱ '+fmtTime(S.t)+' — 计时归零');
+    b2.onclick=()=>{ S.cprStart=S.t; log('⏱ CPR 计时归零'); toast('CPR 计时归零'); };
+    r.appendChild(b1); r.appendChild(b2); g.appendChild(r);
+    ctlSlider(g,'按压频率',()=>S.cpr.rate,v=>S.cpr.rate=v,60,160,2,v=>v+' 次/分');
+    ctlSlider(g,'按压深度',()=>S.cpr.depth,v=>S.cpr.depth=v,3,6,.5,v=>v.toFixed(1)+' cm');
+    ctlSelect(g,'按压:通气比',[['30','30 : 2'],['15','15 : 2']],()=>S.cpr.ratio,v=>S.cpr.ratio=+v);
+    ctlSwitch(g,'按压通气(暂停胸外按压)',()=>!!S.cpr.vent,v=>S.cpr.vent=v);
+    g.appendChild(h('div','note','按压会在心电图上叠加真实的胸壁运动伪差,并维持 MAP ≈ 38–70 mmHg 以保障冠脉/脑灌注。'+
+      '持续按压可显著提高除颤转复概率(模型中 ×1.35)。'));
+    const g2=grp(b,'快速操作');
+    const mk=(t,f)=>{ const c=h('div','btn',t); c.style.marginBottom='8px'; c.onclick=f; g2.appendChild(c); };
+    mk('💊 肾上腺素 1 mg',()=>giveDrug('epi',1));
+    mk('⚡ 充电 200 J',()=>{ defibSetE(200); defibCharge(); audioInit(); });
+  });
+}
+function fmtTime(s){ const m=Math.floor(s/60), ss=Math.floor(s%60); return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss; }
+/* ---------- 电极 ---------- */
+function openElec(){
+  openSheet('电极与导联管理',(b)=>{
+    const g=grp(b,'导联开关(按需显示)');
+    const chips=h('div','chips');
+    const all=LEADS.map(l=>l.n).concat(['PLTH','ART','RESP','CO2']);
+    all.forEach(k=>{ const c=h('div','chip'+(S.view.leads.indexOf(k)>=0?' on':''),k in CH?CH[k].l:k);
+      c.onclick=()=>{ const i=S.view.leads.indexOf(k);
+        if(i>=0){ if(S.view.leads.length<=1)return toast('至少保留 1 个通道'); S.view.leads.splice(i,1);} else S.view.leads.push(k);
+        c.classList.toggle('on',S.view.leads.indexOf(k)>=0); buildRows(); };
+      chips.appendChild(c); });
+    g.appendChild(chips);
+    const g0=grp(b,'有创监测');
+    ctlSwitch(g0,'桡动脉置管(ART 波形 + 连续血压)',()=>S.artLine,v=>{
+      S.artLine=v; log('桡动脉置管'+(v?'已建立':'已拔除'));
+      if(!v){ const i=S.view.leads.indexOf('ART'); if(i>=0&&S.view.leads.length>1) S.view.leads.splice(i,1); }
+      buildRows(); });
+    g0.appendChild(h('div','note','有创血压由桡动脉导管连续测量,直接读数、秒级刷新,血流动力学不稳定时用这个;'+
+      '无创(NIBP)要 30 秒袖带测量,大出血或心动过速时会明显滞后、甚至测不出来。'));
+    const g2=grp(b,'10 个电极 (模拟脱落)');
+    const eN={RA:'右上肢',LA:'左上肢',RL:'右下肢',LL:'左下肢',V1:'V1 胸骨右缘4肋间',V2:'V2 胸骨左缘4肋间',V3:'V3 V2/V4 之间',V4:'V4 左锁骨中线5肋间',V5:'V5 左腋前线',V6:'V6 左腋中线'};
+    const c2=h('div','chips');
+    Object.keys(eN).forEach(k=>{ const c=h('div','chip'+(S.leadOff[k]?'':' on'),eN[k]);
+      c.onclick=()=>{ S.leadOff[k]=!S.leadOff[k]; c.classList.toggle('on',!S.leadOff[k]);
+        c.style.borderColor=S.leadOff[k]?'#ff3b30':''; c.style.color=S.leadOff[k]?'#ff8078':'';
+        log('🔌 电极 '+(S.leadOff[k]?'脱落:':'接回:')+eN[k]); };
+      c2.appendChild(c); });
+    g2.appendChild(c2);
+    g2.appendChild(h('div','note','肢体导联脱落会在涉及该电极的导联上产生基线跳变/干扰(V1 附近消失,aVR 反向增大);胸前导联脱落表现为该导联高幅噪声。'));
+  });
+}
+/* ---------- 动脉血气 ---------- */
+function openABG(){
+  openSheet('动脉血气 (ABG)',(b)=>{
+    const g=grp(b,'血气分析');
+    const box=h('div','note'); g.appendChild(box);
+    const render=()=>{ if(!S.abg){ box.innerHTML='<span style="color:#6b7d8e">尚未采血 —— 点下方「采血送检」</span>'; return; }
+      const a=S.abg, F=(v,lo,hi)=>'<span style="color:'+(v<lo||v>hi?'#ff8078':'#39ff88')+'">'+v+'</span>';
+      box.innerHTML=
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px">'+
+        '<div>pH　　　'+F(a.ph,7.35,7.45)+'</div><div>PaCO₂　 '+F(a.pco2,35,45)+' mmHg</div>'+
+        '<div>PaO₂　　'+F(a.po2,80,100)+' mmHg</div><div>SaO₂　　'+F(a.sao2,94,100)+' %</div>'+
+        '<div>HCO₃⁻　 '+F(a.hco3,22,26)+' mmol/L</div><div>BE　　　'+F(a.be,-2,2)+' mmol/L</div>'+
+        '<div>乳酸　　'+F(a.lac,0.5,2.0)+' mmol/L</div><div>Hb　　　'+a.hb+' g/L　Hct '+a.hct+'%</div></div>'; };
+    const r1=h('div','btn pri','🩸 采血送检'); r1.style.margin='10px 0';
+    r1.onclick=()=>{ drawABG(); render(); log('🩸 动脉血气: '+JSON.stringify(S.abg)); };
+    g.appendChild(r1); render();
+    g.appendChild(h('div','note','数值由同一套血气方程实时折算(呼吸机设定、FiO₂、乳酸、酸碱都由循环动力学决定),'+
+      '每次采样带预分析误差。红色表示超出参考范围。'));
+  });
+}
+/* ═══════════════════════════════════════════════════════════
+   导出心电图
+   · 长导联条:所选秒数 × 所选导联,标准心电图纸
+   · 12 导联报告:3×4 布局 + II 导联长条 + 测量值 + 自动判读
+   · CSV:原始采样数据
+   ═══════════════════════════════════════════════════════════ */
+function openExport(){
+  openSheet('导出心电图',(b)=>{
+    const g=grp(b,'导出设置');
+    ctlSelect(g,'时长',[['6','最近 6 秒'],['10','最近 10 秒'],['30','最近 30 秒'],['60','最近 60 秒']],
+      ()=>S.exp.sec,v=>S.exp.sec=parseInt(v));
+    ctlSelect(g,'内容',[['strip','长导联条(所选导联)'],['12','12 导联报告(固定 10 秒)'],['csv','CSV 采样数据']],
+      ()=>S.exp.mode,v=>S.exp.mode=v);
+    const g2=grp(b,'导联(可多选)');
+    const chips=h('div','chips');
+    const all=LEADS.map(l=>l.n);
+    all.forEach(n=>{
+      const c=h('div','chip'+(S.exp.leads.indexOf(n)>=0?' on':''),n);
+      c.onclick=()=>{ const i=S.exp.leads.indexOf(n);
+        if(i>=0){ if(S.exp.leads.length<=1) return toast('至少保留 1 个导联'); S.exp.leads.splice(i,1);} else S.exp.leads.push(n);
+        c.classList.toggle('on',S.exp.leads.indexOf(n)>=0); };
+      chips.appendChild(c);
+    });
+    g2.appendChild(chips);
+    g2.appendChild(h('div','note','长导联条按你选的导联逐行绘制,每行 2.5 秒一列(25 mm/s)。'));
+    ctlSwitch(g2,'打印 1mV 定标脉冲',()=>S.exp.cal,v=>S.exp.cal=v);
+    ctlSlider(g2,'导联行间距',()=>S.exp.rowGap,v=>S.exp.rowGap=v,0.8,2.0,0.1);
+    // 附加内容开关
+    const g3=grp(b,'附加内容(关闭后只留导联名、波形、定标方框、网格)');
+    [
+      ['title',  '顶部大标题"ICU 生理监护模拟器"'],
+      ['patient','右上患者信息(性别·年龄·体重·Hb·时间)'],
+      ['measures','底部测量值(HR·QTc·血氧·pH·乳酸)'],
+      ['meta',   '底部扫速/增益/定标/时间戳'],
+      ['label',  '每个波形前的小导联名'],
+      ['grid',   '心电图纸 1mm / 5mm 网格'],
+    ].forEach(([k,name])=>{
+      ctlSwitch(g3,name,()=>S.exp[k],v=>S.exp[k]=v);
+    });
+    const row=h('div','bgrid');
+    const btnAll=h('div','btn','全部开启');
+    const btnNone=h('div','btn','全部关闭');
+    btnAll.onclick=()=>['title','patient','measures','meta','label','grid'].forEach(k=>S.exp[k]=true) || toast('已全开');
+    btnNone.onclick=()=>['title','patient','measures','meta','label','grid'].forEach(k=>S.exp[k]=false) || toast('已全关(只留波形+定标)');
+    row.appendChild(btnAll); row.appendChild(btnNone); g3.appendChild(row);
+    const gX=grp(b,'导出');
+    const r=h('div','bgrid');
+    const b1=h('div','btn pri','📄 导出 PNG'); b1.onclick=()=>doExport('png');
+    const b2=h('div','btn','📊 导出 CSV'); b2.onclick=()=>doExport('csv');
+    r.appendChild(b1); r.appendChild(b2); gX.appendChild(r);
+    gX.appendChild(h('div','note','导出的 PNG 为标准心电图纸(1 mm 淡红网格 + 5 mm 深红网格),含患者信息、'+
+      '日期时间、扫速/增益标注与自动测量值。CSV 含各导联逐点采样(250 Hz),可用 Excel / Python 直接分析。'));
+  });
+}
+/* 从环形缓冲取一段时间的某导联(返回 mV) */
+function grabLead(name,sec){
+  const L2=LI[name], out=[];
+  const t1=S.t-0.05, t0=t1-sec;
+  for(let i=Math.floor(t0*FS);i<=Math.floor(t1*FS);i++){
+    const gi=((i%BUFSZ)+BUFSZ)%BUFSZ;
+    out.push([i/FS, ecgBuf[L2][gi]]);
+  }
+  return out;
+}
+/* 画一张标准心电图纸 */
+function buildECGCanvas(kind,sec,leads){
+  const PX=4;                       // 4 px / mm
+  const SEC=2.5, COLW=62.5;          // 每列 2.5 秒 = 62.5 mm
+  const nCol=Math.max(1,Math.round(sec/SEC));
+  const M=14, HEAD=26, FOOT=34, ROWH=34;
+  const PAPER={bg:'#fdfcf7',grid1:'rgba(205,85,85,.30)',grid2:'rgba(190,60,60,.62)',ink:'#16181a',lab:'#2a2d31'};
+  let W,H,leadRows,colW=COLW*PX,blockRows=1,colsPerRow=nCol;
+  if(kind==='12'){
+    const rowH=ROWH*PX/4 * (S.exp.rowGap||1);
+    W=M*2+4*colW;
+    H=Math.round(M+HEAD+3*rowH+rowH+FOOT+M);  // 3 行 12 导联 + 1 行 II 长条
+  }else{
+    const perRow=8;
+    blockRows=Math.ceil(nCol/perRow);
+    colsPerRow=Math.min(nCol,perRow);
+    const rowH=ROWH*PX/4*(S.exp.rowGap||1);
+    W=M*2+colsPerRow*colW;
+    H=Math.round(M+HEAD+blockRows*leads.length*rowH+FOOT+M);
+  }
+  const cv=document.createElement('canvas');
+  const dpr=2;
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle=PAPER.bg; ctx.fillRect(0,0,W,H);
+  if(S.exp.grid){
+    ctx.lineWidth=0.5;
+    for(let x=0;x<W;x+=PX){ ctx.strokeStyle=PAPER.grid1; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for(let y=0;y<H;y+=PX){ ctx.strokeStyle=PAPER.grid1; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    ctx.lineWidth=0.9;
+    for(let x=0;x<W;x+=PX*5){ ctx.strokeStyle=PAPER.grid2; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for(let y=0;y<H;y+=PX*5){ ctx.strokeStyle=PAPER.grid2; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  }
+  if(S.exp.title||S.exp.patient){
+    ctx.fillStyle=PAPER.ink; ctx.textAlign='left';
+    if(S.exp.title) { ctx.font='bold '+(4.2*PX)+'px sans-serif'; ctx.fillText('ICU 生理监护模拟器 · 心电图',M,HEAD*0.62); }
+    if(S.exp.patient){ ctx.font=(2.6*PX)+'px sans-serif'; ctx.textAlign='right';
+      ctx.fillText((S.sex==='M'?'男':'女')+' · '+S.age+' 岁 · '+S.weight+' kg · Hb '+S.hb+' g/L    '+
+        new Date().toLocaleString('zh-CN',{hour12:false}),W-M,HEAD*0.62); }
+    ctx.textAlign='left';
+  }
+  const gain=S.view.gain, pxPerMv=gain*PX;
+  // 实际绘制
+  const plot=(pts,t0,t1,x0,y0,w,baseY,pxPerMv)=>{
+    ctx.strokeStyle=PAPER.ink; ctx.lineWidth=1.15; ctx.lineJoin='round'; ctx.beginPath();
+    let first=true;
+    for(let i=0;i<pts.length;i++){
+      const t=pts[i][0], v=pts[i][1];
+      const x=x0+(t-t0)/(t1-t0)*w;
+      const y=baseY-clamp(v,-3.5,3.5)*pxPerMv;
+      if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  };
+  const calPulse=(x0,y0,h,label)=>{
+    ctx.strokeStyle=PAPER.ink; ctx.lineWidth=1.15;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0,y0-h); ctx.lineTo(x0+2*PX,y0-h); ctx.lineTo(x0+2*PX,y0); ctx.stroke();
+  };
+  if(kind==='12'){
+    const rowH=ROWH*PX/4*(S.exp.rowGap||1), t1=S.t-0.05, t0=t1-10;
+    for(let r=0;r<3;r++){
+      const baseY=M+HEAD+r*rowH+rowH*0.72;
+      for(let c=0;c<4;c++){
+        const nm=L12[r][c], x0=M+c*colW;
+        const pts=grabLead(nm,10);
+        const seg=pts.filter(p=>p[0]>=t0+c*2.5&&p[0]<t0+(c+1)*2.5);
+        if(seg.length>1) plot(seg,t0+c*2.5,t0+(c+1)*2.5,x0,baseY,colW,baseY,pxPerMv);
+        if(S.exp.label){ ctx.fillStyle=PAPER.lab; ctx.font='bold '+(2.9*PX)+'px sans-serif'; ctx.textAlign='left'; ctx.fillText(nm,x0+1.5*PX,baseY-rowH*0.55); }
+        if(S.exp.cal) calPulse(x0+1*PX,baseY+rowH*0.22,pxPerMv);
+      }
+    }
+    // 底部 II 导联长条
+    const baseY=M+HEAD+3*rowH+rowH*0.72;
+    const pts=grabLead('II',10);
+    plot(pts,t0,t1,M,baseY,nCol*colW,baseY,pxPerMv);
+    if(S.exp.label){ ctx.fillStyle=PAPER.lab; ctx.font='bold '+(2.9*PX)+'px sans-serif'; ctx.fillText('II',M+1.5*PX,baseY-rowH*0.55); }
+    // 页脚:测量值
+    const hr=(S.rrHist.length?Math.round(60/([...S.rrHist].sort((a,b)=>a-b)[Math.floor(S.rrHist.length/2)]||0.8)):Math.round(S.hr));
+    ctx.fillStyle=PAPER.lab; ctx.font=(2.7*PX)+'px monospace';
+    if(S.exp.measures){
+      ctx.fillText('心率 '+hr+' bpm   QT '+Math.round(S.qtInt*1000)+' ms   QTc '+Math.round(S.qtc*1000)+' ms   '+
+        'QRS '+Math.round(S.qrsInt*1000)+' ms   血氧 '+S.sao2.toFixed(1)+'%   pH '+S.ph.toFixed(2)+'   乳酸 '+S.lactate.toFixed(1)+' mmol/L',M,H-M-14*PX);
+    }
+    if(S.exp.meta){
+      ctx.fillText('25 mm/s   '+gain+' mm/mV   1 mV 定标   '+rhyName()+'   '+new Date().toLocaleString('zh-CN',{hour12:false}),
+        M,H-M-5*PX);
+    }
+  }else{
+    const rowH=ROWH*PX/4*(S.exp.rowGap||1), t1=S.t-0.05, t0=t1-sec;
+    leads.forEach((nm,r)=>{
+      const pts=grabLead(nm,sec);
+      for(let b=0;b<blockRows;b++){
+        const baseY=M+HEAD+(b*leads.length+r)*rowH+rowH*0.70;
+        for(let c=0;c<colsPerRow;c++){
+          const ci=b*colsPerRow+c; if(ci>=nCol) break;
+          const cs=t0+ci*SEC, ce=cs+SEC;
+          const seg=pts.filter(p=>p[0]>=cs&&p[0]<=ce);
+          if(seg.length>1) plot(seg,cs,ce,M+c*colW,baseY,colW,baseY,pxPerMv);
+          ctx.strokeStyle=PAPER.grid2; ctx.lineWidth=0.8;
+          ctx.beginPath(); ctx.moveTo(M+(c+1)*colW,M+HEAD-4); ctx.lineTo(M+(c+1)*colW,H-M-4*PX); ctx.stroke();
+        }
+        if(S.exp.label){ ctx.fillStyle=PAPER.lab; ctx.font='bold '+(2.9*PX)+'px sans-serif'; ctx.textAlign='left'; ctx.fillText(nm+(blockRows>1?'  ('+(b+1)+'/'+blockRows+')':''),M+1.5*PX,baseY-rowH*0.52); }
+        if(S.exp.cal) calPulse(M+colW-6*PX,baseY+rowH*0.22,pxPerMv);
+      }
+    });
+    ctx.fillStyle=PAPER.lab; ctx.font=(2.7*PX)+'px monospace'; ctx.textAlign='left';
+    if(S.exp.measures||S.exp.meta){
+      const p1=(S.exp.measures?'心率 '+Math.round(S.hr)+' bpm    QTc '+Math.round(S.qtc*1000)+' ms    '+rhyName()+'    ':'');
+      const p2=(S.exp.meta?'25 mm/s   '+gain+' mm/mV    '+new Date().toLocaleString('zh-CN',{hour12:false}):'');
+      ctx.fillText((p1+p2).trim(),M,H-M-8*PX);
+    }
+  }
+  return cv;
+}
+function doExport(kind){
+  const sec=parseInt(S.exp.sec)||10, leads=S.exp.leads.slice();
+  if(kind==='csv'){ exportCSV(leads,sec); return; }
+  const cv=buildECGCanvas(S.exp.mode==='12'?'12':'strip', S.exp.mode==='12'?10:sec, leads);
+  cv.toBlob(function(blob){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='ECG_'+(S.exp.mode==='12'?'12lead':'strip')+'_'+(S.exp.mode==='12'?10:sec)+'s_'+Date.now()+'.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    log('📤 导出心电图 '+(S.exp.mode==='12'?'12 导联报告':leads.join('/')+' '+sec+' 秒'));
+    toast('已导出 PNG');
+  },'image/png');
+}
+function exportCSV(leads,sec){
+  const t1=S.t-0.05, t0=t1-sec;
+  const i0=Math.floor(t0*FS), i1=Math.floor(t1*FS);
+  let csv='time_s'+leads.map(l=>','+l+'_mV').join('')+'\n';
+  for(let i=i0;i<=i1;i++){
+    const gi=((i%BUFSZ)+BUFSZ)%BUFSZ;
+    let row=((i/FS)-t0).toFixed(4);
+    leads.forEach(l=>{ row+=','+ecgBuf[LI[l]][gi].toFixed(4); });
+    csv+=row+'\n';
+  }
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ECG_'+leads.join('-')+'_'+sec+'s.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  log('📤 导出 CSV '+leads.join('/')+' '+sec+' 秒');
+  toast('已导出 CSV');
+}
+/* ---------- 心电图特质 ---------- */
+function openECG(){
+  openSheet('心电图特质 · 全身状态 → 波形',(b)=>{
+    const g=grp(b,'电解质(最经典的波形-化验关联)');
+    ctlSlider(g,'血钾 K⁺',()=>S.elec.K,v=>S.elec.K=v,2.0,7.5,.05,v=>v.toFixed(2)+' mmol/L');
+    ctlSlider(g,'血镁 Mg²⁺',()=>S.elec.Mg,v=>S.elec.Mg=v,0.5,3.0,.05,v=>v.toFixed(2)+' mmol/L');
+    g.appendChild(h('div','note',
+      '<b style="color:#ff8078">高钾</b>:T 波高耸对称(帐篷状)、QT 缩短、P 波变钝消失、QRS 增宽<br>'+
+      '<b style="color:#ffd23f">低钾</b>:T 波低平、ST 压低、QT 延长、QT 末端出现 U 波<br>'+
+      '<b style="color:#8fb0c8">低镁</b>:QT 延长 → 尖端扭转型室速风险显著升高'));
+
+    const g2=grp(b,'体温');
+    ctlSlider(g2,'核心体温',()=>S.base.temp,v=>S.base.temp=v,30,40,.1,v=>v.toFixed(1)+'℃');
+    g2.appendChild(h('div','note','体温<35℃ 出现 <b style="color:#5fd8ff">Osborn J 波</b>(QRS 后正相顿挫)与寒战肌电;'));
+    g2.appendChild(h('div','note','主动复温(复温毯)后 J 波消失 —— 现场识别低体温最实用的单个征象。'));
+
+    const g3=grp(b,'药物对心电图的影响');
+    ctlSlider(g3,'洋地黄',()=>S.ecgDrug.dig,v=>S.ecgDrug.dig=v,0,1,.05,v=>v<.03?'无':('效应 '+v.toFixed(2)));
+    ctlSlider(g3,'胺碘酮',()=>S.ecgDrug.amio,v=>S.ecgDrug.amio=v,0,1,.05,v=>v<.03?'无':('效应 '+v.toFixed(2)));
+    ctlSlider(g3,'普鲁卡因胺',()=>S.ecgDrug.proc,v=>S.ecgDrug.proc=v,0,1,.05,v=>v<.03?'无':('效应 '+v.toFixed(2)));
+    g3.appendChild(h('div','note','洋地黄 → ST 段鱼钩样下斜(aVR、V5 最典型)<br>'+
+      '胺碘酮 → QT 延长(尖端扭转风险↑) + QRS 轻度增宽<br>普鲁卡因胺 → QRS 明显增宽'));
+
+    const g4=grp(b,'心肌缺血');
+    ctlSlider(g4,'缺血程度',()=>S.isch.sev,v=>S.isch.sev=v,0,1,.05,v=>v.toFixed(2));
+    ctlSlider(g4,'应激(运动/疼痛)',()=>S.isch.on,v=>S.isch.on=v,0,1,.05,v=>v.toFixed(2));
+    g4.appendChild(h('div','note','缺血性 ST 压低呈区域性分布,应激时进一步加深 —— 这正是运动负荷试验的原理。'));
+
+    const g5=grp(b,'实时测量');
+    const live=h('div','note'); g5.appendChild(live);
+    const upd=()=>{ if(!document.getElementById('sheet').classList.contains('on'))return;
+      const tc=S.temp;
+      live.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;font-size:13px">'+
+        '<div>RR 间期 '+S.hrv.rr+' ms</div><div>SDNN '+S.hrv.sdnn.toFixed(0)+' ms</div>'+
+        '<div>RMSSD '+S.hrv.rmssd.toFixed(0)+' ms</div><div>QTc <b style="color:'+
+          (S.qtc>0.5?'#ff8078':(S.qtc>0.45?'#ffd23f':'#39ff88'))+'">'+Math.round(S.qtc*1000)+' ms</b></div>'+
+        '<div>QT '+Math.round(S.qtInt*1000)+' ms</div><div>QRS '+Math.round(S.qrsInt*1000)+' ms</div>'+
+        '<div>TdP 风险</div><div><b style="color:'+(S.tdpRisk>0.5?'#ff8078':'#39ff88')+'">'+
+          Math.round(S.tdpRisk*100)+'%</b></div></div>';
+      setTimeout(upd,400); };
+    setTimeout(upd,60);
+  });
+}
+/* ---------- 出入量 ---------- */
+function openIO(){
+  openSheet('出入量平衡',(b)=>{
+    const g=grp(b,'液体平衡');
+    const live=h('div','note'); g.appendChild(live);
+    const upd=()=>{ if(!document.getElementById('sheet').classList.contains('on'))return;
+      live.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px">'+
+        '<div>尿量　　 '+S.io.urineTotal.toFixed(0)+' mL</div><div>输液　　 '+S.io.infTotal.toFixed(0)+' mL</div>'+
+        '<div>不显性失水 '+S.io.insensTotal.toFixed(0)+' mL</div><div><b>净平衡 '+
+          (S.io.balance>=0?'+':'')+S.io.balance.toFixed(0)+' mL</b></div>'+
+        '<div>尿量速率 '+S.io.urineRate.toFixed(0)+' mL/h</div><div>血容量　 '+
+          (S.base.vol>=100?'<span style="color:#39ff88">':'')+S.base.vol.toFixed(0)+'%'+
+          (S.base.vol>=100?'</span>':'<span style="color:#ff8078">')+'</div></div>';
+      setTimeout(upd,400); };
+    setTimeout(upd,60);
+    ctlSlider(g,'输液速度',()=>S.io.rate||0,v=>S.io.rate=v,0,300,5,v=>v+' mL/h');
+    ctlSlider(g,'皮肤/气道蒸发(脱水)',()=>S.waterLoss,v=>S.waterLoss=v,0.4,2.5,.05,v=>v.toFixed(2)+'×');
+    const r=h('div','bgrid');
+    const b1=h('div','btn pri','💧 快速输注 500 mL'); b1.onclick=()=>{ S.io.infTotal+=500; S.io.balance+=500; S.base.vol=clamp(S.base.vol+10,35,160); log('💧 快速输注 500 mL'); };
+    const b2=h('div','btn','🧹 归零'); b2.onclick=()=>{ S.io.urineTotal=S.io.infTotal=S.io.insensTotal=0; S.io.balance=0; log('出入量已归零'); };
+    r.appendChild(b1); r.appendChild(b2); g.appendChild(r);
+    g.appendChild(h('div','note','尿量由肾灌注压驱动:MAP>70 正常,MAP 50~60 少尿,MAP<38 无尿。'+
+      '输液与不显性失水按 1% 血容量 ≈ 50 mL 直接加减回心血量 —— 补液和利尿因此是真正有效的治疗。'));
+  });
+}
+/* ---------- 通气 ---------- */
+function openVent(){
+  openSheet('呼吸与血气',(b)=>{
+    const g=grp(b,'呼吸');
+    ctlSlider(g,'呼吸频率',()=>S.base.rr,v=>S.base.rr=v,0,40,1,v=>v?v+' /min':'呼吸暂停');
+    ctlSlider(g,'FiO₂',()=>S.fio2,v=>S.fio2=v,.21,1,.01,v=>(v*100).toFixed(0)+'%');
+    ctlSwitch(g,'机械通气',()=>!!S.mechVent,v=>S.mechVent=v);
+    ctlSwitch(g,'锁定 RR (脱离呼吸机)',()=>!!S.rrLock,v=>S.rrLock=(v?S.rrInt:0));
+    const g2=grp(b,'实时数值');
+    g2.appendChild(h('div','note',
+      'SpO₂(动脉) <b style="color:#39d7f2">'+S.sao2.toFixed(1)+'%</b><br>'+
+      'SpO₂(外周脉搏波) <b style="color:#39d7f2">'+S.spo2.toFixed(1)+'%</b> · 灌注指数 '+S.perfIdx.toFixed(2)+'<br>'+
+      'PaO₂ '+Math.round(S.pao2)+' mmHg · PaCO₂ '+Math.round(S.paco2)+' mmHg · EtCO₂ '+Math.round(S.etco2||0)+' mmHg<br>'+
+      'SvO₂ '+S.svo2.toFixed(1)+'% · DO₂/VO₂ <b>'+S.dox.toFixed(2)+'</b> · VO₂ '+Math.round(S.vo2)+' ml/min<br>'+
+      '动脉氧含量 CaO₂ '+(1.34*S.hb*S.sao2).toFixed(1)+' ml/dl · 乳酸 '+S.lactate.toFixed(1)+' mmol/L<br>'+
+      'pH '+S.ph.toFixed(3)+' · HCO₃⁻ '+(24-Math.max(0,S.lactate-1)*1.4).toFixed(1)+' mmol/L<br>'+
+      '体温 '+S.temp.toFixed(1)+'℃'));
+    b.appendChild(h('div','note','血氧由 Severinghaus 氧解离曲线计算,PaO₂ 来自肺泡气方程,PaCO₂ 由分钟通气量 × CO₂ 产生量反推。'+
+      '呼吸暂停时 PaCO₂ 上升约 5 mmHg/min,进而 PaO₂ 下降、血氧缓慢下滑 — 与临床一致。'));
+  });
+}
+/* ---------- 日志 ---------- */
+function openLog(){
+  openSheet('事件日志',(b)=>{
+    const g=grp(b,'记录');
+    const box=h('div','logbox',(S.log.length?S.log:[]).map(l=>
+      '<div><time>'+new Date(l.t).toLocaleTimeString('zh-CN',{hour12:false})+'</time>'+l.m+'</div>').join(''));
+    box.style.maxHeight='55vh'; g.appendChild(box);
+    const r=h('div','bgrid'); r.style.marginTop='10px';
+    const c1=h('div','btn','🗑 清空'); c1.onclick=()=>{S.log=[];openLog();};
+    const c2=h('div','btn','📋 复制'); c2.onclick=()=>{ const txt=S.log.map(l=>new Date(l.t).toLocaleTimeString('zh-CN',{hour12:false})+' '+l.m).join('\n');
+      if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>toast('已复制'),()=>toast('复制失败')); };
+    r.appendChild(c1); r.appendChild(c2); g.appendChild(r);
+  });
+}
+function openAbout(){
+  openSheet('说明',(b)=>{
+    const g=grp(b,'这是什么');
+    g.appendChild(h('div','note',
+      '<b style="color:#c8d6e2">ICU 生理监护模拟器</b> — 波形不是动画贴图,而是数值实时演算出来的。<br><br>'+
+      '<b>心电</b>:每一搏生成一个三维心电向量环(额面 A / 水平面 B 三个序贯分量:室间隔 → 主心室 → 终末),'+
+      '再按各导联轴做正交投影 —— Ⅰ/Ⅱ/Ⅲ 与 aVR/aVL/aVF 用额面六轴系,V1–V6 用水平面六轴系。'+
+      '所以改心电轴、改 QRS 振幅,12 个导联会按真实几何关系一起变;V1→V6 的 R 波递增与移行区是算出来的,不是画的。<br><br>'+
+      '<b>循环</b>:EDV∝血容量,EF∝收缩力,CO = HR×SV,MAP = CO×SVR + CVP,脉压 PP = SV/动脉顺应性。'+
+      '心率过快充盈不足、后负荷失配、酸中毒/缺氧/发热抑制收缩力都进了方程 —— 强心剂/血管活性药会真实改变这条回路。<br><br>'+
+      '<b>有创压</b>:主动脉 Windkessel 波形 → 二阶欠阻尼系统 → 桡动脉重搏切迹。<br>'+
+      '<b>血氧</b>:肺泡气方程 → PaO₂ → Severinghaus 曲线 → SaO₂;PaCO₂ 由分钟通气量反推;'+
+      '再算 DO₂/VO₂、乳酸、pH。<br>'+
+      '<b>无创压</b>:振荡法袖带包络 + 比值法(收缩压 0.25、最大振幅处平均压、舒张压 0.72)。<br>'+
+      '<b>除颤</b>:P(转复) 随能量上升、随停搏时间按 e^(−t/230) 衰减,CPR 中 ×1.35。<br><br>'+
+      '<b style="color:#ffd23f">⚠ 仅供医学教学 / 应急流程演练,不是医疗器械,不可用于真实患者。</b>'));
+  });
+}
+
+/* ============================================================
+   14. 交互 / 主循环 / 初始化
+   ============================================================ */
+document.getElementById('menuBtn').onclick=()=>{ audioInit(); openDrawer(); };
+document.getElementById('scrim').onclick=()=>{ closeSheet(); closeDrawer(); };
+document.getElementById('sheetClose').onclick=closeSheet;
+document.querySelectorAll('.quickbar button').forEach(bt=>bt.onclick=()=>{
+  audioInit(); const a=bt.dataset.act;
+  if(a==='defib')openDefib(); else if(a==='drug')openDrugs(); else if(a==='nibp')openNibp();
+  else if(a==='cpr')openCpr(); else if(a==='lead12'){ document.getElementById('pg12').classList.add('on'); setTimeout(draw12,60); }
+});
+/* 触摸:左滑开菜单 / 右滑关 */
+(function(){
+  let x0=0,y0=0,act=false,open=false;
+  document.addEventListener('touchstart',e=>{
+    const t=e.touches[0]; x0=t.clientX; y0=t.clientY; act=true;
+    open=document.getElementById('drawer').classList.contains('on');
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!act)return; act=false;
+    const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0;
+    if(Math.abs(dx)<45||Math.abs(dy)>60)return;
+    const inSheet=document.getElementById('sheet').classList.contains('on');
+    if(dx<-45&&x0<70){ if(!inSheet)openDrawer(); }
+    else if(dx>45&&open){ closeDrawer(); }
+  },{passive:true});
+  document.addEventListener('touchmove',()=>{ audioInit(); },{once:true,passive:true});
+})();
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ closeSheet(); closeDrawer(); document.getElementById('pg12').classList.remove('on'); }
+  if(e.key===' '){ e.preventDefault(); S.silenced=!S.silenced; if(S.silenced)S.silenceUntil=Date.now()+120000; }
+  if(e.key.toLowerCase()==='d'&&!S.defib.st.match(/ready|fired/)) defibShock();
+  if(e.key.toLowerCase()==='c') defibCharge();
+  if(e.key.toLowerCase()==='n'){ const N=S.nibp; if(N.st==='idle'){N.st='inflate';N.cuff=0;N.peak=0;N.sbpx=0;N.dbpx=0;N.hist=[];S.cuff=0;} }
+});
+let resizeT=null;
+window.addEventListener('resize',()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{
+  document.querySelectorAll('#waveWrap canvas').forEach(fitCanvas);
+  if(document.getElementById('pg12').classList.contains('on'))draw12();
+},160); });
+
+let acc=0,lastT=performance.now(),uiAcc=0,alarmAcc=0;
+function frame(now){
+  const dtR=Math.min(.08,(now-lastT)/1000); lastT=now;
+  const dt=dtR*S.timeScale;
+  acc+=dt;
+  const step=1/FS; let guard=0;
+  while(acc>=step&&guard++<400){ acc-=step; physStep(step); }
+  // 波形参数变化 → 按心搏描述符重建可见段(改动立刻全局生效,且不留旧数据)
+  if(S.sigDirty&&(S.t-S.sigDirtyAt)>0.08) renderBuf(13);
+  // 12导联页
+  if(document.getElementById('pg12').classList.contains('on')){ uiAcc+=dtR; if(uiAcc>0.5){uiAcc=0;draw12();} }
+  // 报警音频
+  alarmAcc+=dtR;
+  if(alarmAcc>1.1){
+    alarmAcc=0;
+    const A=(S.activeAlarms||[]);
+    const hp=A.find(a=>a.hp===2);
+    if(hp&&!(S.silenced&&Date.now()<S.silenceUntil)){ beep(1180,.28,.06); setTimeout(()=>beep(880,.28,.06),300); }
+    else if(A.length&&!(S.silenced&&Date.now()<S.silenceUntil)) beep(760,.1,.035);
+  }
+  // 充电音渐强
+  if(S.defib.st==='charging'&&toneO&&AC) toneO.frequency.value=140+(S.defib.e/360)*420+S.defib.ch*90;
+  // 电池
+  S.defib.batt=Math.max(0,S.defib.batt-dt*0.008);
+  sweepAdvance(dtR);
+  drawAll();
+  // 时钟
+  const d=new Date();
+  document.getElementById('clock').textContent=d.toLocaleTimeString('zh-CN',{hour12:false});
+  document.getElementById('batt').textContent='⚡'+S.defib.batt.toFixed(0)+'%';
+  document.getElementById('ptMeta').textContent=(S.sex==='M'?'男 ':'女 ')+S.age+'y · '+S.weight+'kg · Hb '+S.hb
+    +' · FiO₂ '+(S.fio2*100).toFixed(0)+'% · GCS '+(S.gcs||15)
+    +(S.prog.on&&S.prog.next<S.t+1e9?(' · 病程 '+Math.max(0,S.prog.next-S.t).toFixed(0)+'s'):'');
+  requestAnimationFrame(frame);
+}
+/* ---------- 启动 ---------- */
+(function init(){
+  S.nextBeat=0.1;
+  buildTiles(); buildRows(); renderDrawer();
+  log('监护仪启动 — 模拟开始');
+  const el=document.getElementById('ptName');
+  el.textContent='BED 01 · 张××';
+  setTimeout(()=>{ if(S.activeAlarms.length===0) toast('左滑菜单 →「波形组合」可开血氧 / 血压波形'); },900);
+  setTimeout(draw12,400);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
